@@ -2,6 +2,16 @@ export type SafetyGrade = "A" | "B" | "C" | "D" | "E" | "F";
 
 export type UserType = "seeker" | "resident";
 
+export interface ParsedRegistrationDoc {
+	owner: string;
+	seniorDebt: number;
+	mortgages: { creditor: string; amount: number }[];
+	hasSeizure: boolean;
+	hasAuction: boolean;
+	ownershipTransferCount: number;
+	warnings: string[];
+}
+
 export interface Address {
 	roadAddress: string;
 	jibunAddress: string;
@@ -17,6 +27,7 @@ export interface DiagnosisInput {
 	depositAmount: number;
 	monthlyRent?: number;
 	hasRegistrationDoc: boolean;
+	registrationDocData?: ParsedRegistrationDoc;
 	seniorDebt?: number;
 	realTradePrice?: number;
 }
@@ -33,6 +44,12 @@ export interface ScoreReasons {
 	depositRatio: string;
 	insurance: string;
 	landlordRisk: string;
+	landlordDetail?: {
+		isCorporation: boolean;
+		seniorDebt: number;
+		mortgageCount: number;
+		warnings: string[];
+	};
 }
 
 export interface DiagnosisResult {

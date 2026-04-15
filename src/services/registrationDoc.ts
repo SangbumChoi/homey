@@ -2,26 +2,11 @@
  * 등기부등본 관련 서비스
  *
  * - 발급 API (TBD): 등기부등본을 자동 발급받아 파싱
- * - 업로드 파싱: 사용자가 올린 PDF/이미지를 OCR로 파싱
+ * - 업로드 파싱: 사용자가 올린 PDF/이미지를 OCR로 파싱 (CLOVA OCR 사용)
  */
 
-/** 등기부등본에서 추출하는 정보 */
-export interface ParsedRegistrationDoc {
-	/** 소유자 이름 */
-	owner: string;
-	/** 선순위 채권 총액 (만원) */
-	seniorDebt: number;
-	/** 근저당권 채권자별 내역 */
-	mortgages: { creditor: string; amount: number }[];
-	/** 압류/가압류 여부 */
-	hasSeizure: boolean;
-	/** 경매 개시 여부 */
-	hasAuction: boolean;
-	/** 최근 소유권 이전 횟수 (최근 5년) */
-	ownershipTransferCount: number;
-	/** 경고 사항 목록 */
-	warnings: string[];
-}
+import type { ParsedRegistrationDoc } from "../types";
+import { callClovaOcr } from "./clovaOcr";
 
 /**
  * 등기부등본 자동 발급 API (TBD)
@@ -78,37 +63,72 @@ export async function fetchRegistrationDoc(
 }
 
 /**
- * 업로드된 등기부등본 파일 파싱 (TBD)
+ * 업로드된 등기부등본 파일 파싱
  *
- * 실제 구현 시:
- * - Supabase Edge Function + CLOVA OCR 호출
- * - PDF/이미지 → 텍스트 추출 → 구조화된 데이터 반환
+ * - CLOVA OCR API 호출하여 PDF/이미지에서 텍스트 추출
+ * - 텍스트에서 소유자, 근저당, 경고 정보 파싱
+ * - 개인/법인 등기부등본 모두 지원
  */
-export async function parseUploadedDoc(
-	_file: File,
-): Promise<ParsedRegistrationDoc> {
-	// TODO: 실제 OCR API 연동 시 교체
-	// const formData = new FormData();
-	// formData.append("file", file);
-	// const res = await fetch(`${SUPABASE_URL}/functions/v1/parse-registration-doc`, {
-	//   method: "POST",
-	//   headers: { Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-	//   body: formData,
-	// });
-	// return res.json();
+export async function parseUploadedDoc(file: File): Promise<ParsedRegistrationDoc> {
+	const fullText = await callClovaOcr(file);
 
-	await new Promise((r) => setTimeout(r, 2000));
+	let owner = "미확인";
+
+	// 법인명 추출 (상호/명칭)
+	const corpMatch = fullText.match(/(?:상호|명칭)\s*[:\s]*((?:주식회사|유한책임|합자회사|사단법인|학교법인|의료법인|[가-힣]+(?:유한|합자))[^,\s]*)/);
+	if (corpMatch?.[1]) {
+		owner = corpMatch[1].trim();
+	}
+
+	// 개인명 추출 (소유자 다음)
+	if (owner === "미확인") {
+		const personalMatch = fullText.match(/소유자\s+([가-힣]{2,6})/);
+		if (personalMatch?.[1]) {
+			owner = personalMatch[1];
+		}
+	}
+
+	// 상호 직접 찾기
+	if (owner === "미확인") {
+		const directCorp = fullText.match(/(?:상호|명칭)\s*((?:주식회사|유한책임)[^,\s]{0,30})/);
+		if (directCorp?.[1]) {
+			owner = directCorp[1].trim();
+		}
+	}
+
+	const mortgages: { creditor: string; amount: number }[] = [];
+
+	// 채권최고액 찾기
+	const amountRe = /채권최고액\s*금\s*([\d,]+)\s*원/g;
+	let m: RegExpExecArray | null;
+	while ((m = amountRe.exec(fullText)) !== null) {
+		const amount = Math.round(parseInt(m[1].replace(/,/g, ""), 10) / 10000);
+		const before = fullText.substring(Math.max(0, m.index - 400), m.index);
+		const creditorMatch = before.match(
+			/([가-힣]+(?:은행|증권|캐피탈|저축은행|카드|생명|화재|신협|새마을금고|농협|수협|우체국))/g,
+		);
+		const creditor = creditorMatch?.at(-1) ?? "금융기관";
+		mortgages.push({ creditor, amount });
+	}
+
+	const seniorDebt = mortgages.reduce((s, x) => s + x.amount, 0);
+
+	const warnings: string[] = [];
+	if (fullText.includes("가압류")) warnings.push("가압류 등기가 발견되었습니다");
+	if (fullText.includes("가처분")) warnings.push("가처분 등기가 발견되었습니다");
+	if (fullText.includes("경매개시")) warnings.push("경매개시결정 등기가 있습니다");
+	if (fullText.includes("압류") && !fullText.includes("가압류")) {
+		warnings.push("압류 등기가 발견되었습니다");
+	}
+	if (fullText.includes("전세권")) warnings.push("선순위 전세권이 설정되어 있습니다");
 
 	return {
-		owner: "이OO",
-		seniorDebt: 8500,
-		mortgages: [
-			{ creditor: "하나은행", amount: 5500 },
-			{ creditor: "농협", amount: 3000 },
-		],
-		hasSeizure: false,
-		hasAuction: false,
-		ownershipTransferCount: 1,
-		warnings: [],
+		owner,
+		seniorDebt,
+		mortgages,
+		hasSeizure: warnings.some((w) => w.includes("가압류") || w.includes("압류")),
+		hasAuction: warnings.some((w) => w.includes("경매")),
+		ownershipTransferCount: 0,
+		warnings,
 	};
 }

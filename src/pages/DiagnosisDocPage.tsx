@@ -4,7 +4,8 @@ import { colors } from "@toss/tds-colors";
 import { useAppStore } from "../store/useAppStore";
 import { calculateDiagnosis } from "../utils/diagnosis";
 import { getRecentTrades, estimateRealTradePrice } from "../services/realEstateApi";
-import type { DiagnosisResult } from "../types";
+import { parseUploadedDoc } from "../services/registrationDoc";
+import type { DiagnosisResult, ParsedRegistrationDoc } from "../types";
 import type { Page } from "../App";
 
 interface Props {
@@ -18,29 +19,53 @@ export function DiagnosisDocPage({ deposit, monthlyRent, onBack, nav }: Props) {
 	const { currentAddress, addDiagnosis } = useAppStore();
 	const fileRef = useRef<HTMLInputElement>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
-	const [loading, setLoading] = useState(false);
+	const [ocrLoading, setOcrLoading] = useState(false);
+	const [diagnosing, setDiagnosing] = useState(false);
+	const [registrationDocData, setRegistrationDocData] = useState<ParsedRegistrationDoc | null>(null);
 
 	if (!currentAddress) { onBack(); return null; }
 
 	const depositNum = parseInt(deposit, 10);
 	const rentNum = parseInt(monthlyRent, 10);
 
-	const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const f = e.target.files?.[0];
-		if (f) setFileName(f.name);
+		if (!f) return;
+
+		setFileName(f.name);
+		setOcrLoading(true);
+		setRegistrationDocData(null);
+
+		try {
+			const parsed = await parseUploadedDoc(f);
+			setRegistrationDocData(parsed);
+		} catch (err) {
+			console.error("OCR 파싱 실패:", err);
+		} finally {
+			setOcrLoading(false);
+		}
+	};
+
+	const handleRemoveFile = () => {
+		setFile(null);
+		setFileName(null);
+		setRegistrationDocData(null);
+		if (fileRef.current) fileRef.current.value = "";
 	};
 
 	const handleDiagnose = async () => {
-		setLoading(true);
+		setDiagnosing(true);
 		try {
 			const trades = await getRecentTrades();
 			const realTradePrice = estimateRealTradePrice(trades);
+			const seniorDebt = registrationDocData?.seniorDebt ?? 0;
 			const result = calculateDiagnosis({
 				address: currentAddress,
 				depositAmount: depositNum,
 				monthlyRent: rentNum,
-				seniorDebt: 0,
-				hasRegistrationDoc: !!fileName,
+				seniorDebt,
+				hasRegistrationDoc: !!registrationDocData,
+				registrationDocData: registrationDocData ?? undefined,
 				realTradePrice,
 			});
 			const full: DiagnosisResult = {
@@ -52,9 +77,11 @@ export function DiagnosisDocPage({ deposit, monthlyRent, onBack, nav }: Props) {
 			addDiagnosis(full);
 			nav({ type: "diagnosis-result", id: full.id });
 		} finally {
-			setLoading(false);
+			setDiagnosing(false);
 		}
 	};
+
+	const loading = ocrLoading || diagnosing;
 
 	return (
 		<>
@@ -102,7 +129,27 @@ export function DiagnosisDocPage({ deposit, monthlyRent, onBack, nav }: Props) {
 							PDF 또는 이미지 파일을 선택해주세요
 						</div>
 					</div>
-				) : (
+				) : ocrLoading ? (
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 10,
+							padding: 14,
+							backgroundColor: "#FFF8E1",
+							borderRadius: 12,
+							border: "1.5px solid #F57F17",
+						}}
+					>
+						<span style={{ fontSize: 20 }}>🔄</span>
+						<div style={{ flex: 1 }}>
+							<div style={{ fontSize: 13, fontWeight: 600 }}>{fileName}</div>
+							<div style={{ fontSize: 11, color: "#F57F17", marginTop: 2 }}>
+								OCR 분석 중...
+							</div>
+						</div>
+					</div>
+				) : registrationDocData ? (
 					<div
 						style={{
 							display: "flex",
@@ -118,11 +165,42 @@ export function DiagnosisDocPage({ deposit, monthlyRent, onBack, nav }: Props) {
 						<div style={{ flex: 1 }}>
 							<div style={{ fontSize: 13, fontWeight: 600 }}>{fileName}</div>
 							<div style={{ fontSize: 11, color: "#276749", marginTop: 2 }}>
-								업로드 완료
+								소유자: {registrationDocData.owner} · 선순위채권: {registrationDocData.seniorDebt.toLocaleString()}만원
+							</div>
+							{registrationDocData.warnings.length > 0 && (
+								<div style={{ fontSize: 11, color: "#E53E3E", marginTop: 2 }}>
+									⚠️ {registrationDocData.warnings[0]}
+								</div>
+							)}
+						</div>
+						<button
+							onClick={handleRemoveFile}
+							style={{ background: "none", border: "none", fontSize: 16, color: "#5C6B66", cursor: "pointer" }}
+						>
+							✕
+						</button>
+					</div>
+				) : (
+					<div
+						style={{
+							display: "flex",
+							alignItems: "center",
+							gap: 10,
+							padding: 14,
+							backgroundColor: "#FED7D7",
+							borderRadius: 12,
+							border: "1.5px solid #E53E3E",
+						}}
+					>
+						<span style={{ fontSize: 20 }}>⚠️</span>
+						<div style={{ flex: 1 }}>
+							<div style={{ fontSize: 13, fontWeight: 600 }}>{fileName}</div>
+							<div style={{ fontSize: 11, color: "#E53E3E", marginTop: 2 }}>
+								OCR 분석 실패
 							</div>
 						</div>
 						<button
-							onClick={() => { setFileName(null); if (fileRef.current) fileRef.current.value = ""; }}
+							onClick={handleRemoveFile}
 							style={{ background: "none", border: "none", fontSize: 16, color: "#5C6B66", cursor: "pointer" }}
 						>
 							✕
@@ -141,7 +219,7 @@ export function DiagnosisDocPage({ deposit, monthlyRent, onBack, nav }: Props) {
 			{/* CTA */}
 			<div style={{ padding: "24px", position: "sticky", bottom: 0, backgroundColor: "#fff", borderTop: "1px solid #E5E7E3" }}>
 				<Button color="dark" onClick={handleDiagnose} loading={loading}>
-					{fileName ? "진단 시작하기" : "등기부등본 없이 진단하기"}
+					{registrationDocData ? "진단 시작하기" : "등기부등본 없이 진단하기"}
 				</Button>
 			</div>
 		</>
