@@ -10,8 +10,7 @@ import { DiagnosisSearchPage } from "./pages/DiagnosisSearchPage";
 import { DiagnosisDepositPage } from "./pages/DiagnosisDepositPage";
 import { DiagnosisDocPage } from "./pages/DiagnosisDocPage";
 import { DiagnosisResultPage } from "./pages/DiagnosisResultPage";
-import { MyhomeDepositPage } from "./pages/MyhomeDepositPage";
-import { MyhomePeriodPage } from "./pages/MyhomePeriodPage";
+import { MyhomeRegisterPage } from "./pages/MyhomeRegisterPage";
 import { ChecklistPage } from "./pages/ChecklistPage";
 import { InAppPurchasePage } from "./pages/InAppPurchasePage";
 import { InAppAdsPage } from "./pages/InAppAdsPage";
@@ -24,8 +23,7 @@ export type Page =
 	| { type: "diagnosis-deposit" }
 	| { type: "diagnosis-doc"; deposit: string; monthlyRent: string }
 	| { type: "diagnosis-result"; id: string }
-	| { type: "myhome-deposit" }
-	| { type: "myhome-period"; deposit: string; monthlyRent: string }
+	| { type: "myhome-register" }
 	| { type: "checklist"; diagnosisId?: string }
 	| { type: "iap" }
 	| { type: "iaa" };
@@ -81,19 +79,10 @@ function App() {
 					nav={nav}
 				/>
 			);
-		case "myhome-deposit":
+		case "myhome-register":
 			return (
-				<MyhomeDepositPage
+				<MyhomeRegisterPage
 					onBack={() => goHome("myhome")}
-					nav={nav}
-				/>
-			);
-		case "myhome-period":
-			return (
-				<MyhomePeriodPage
-					deposit={effectivePage.deposit}
-					monthlyRent={effectivePage.monthlyRent}
-					onBack={() => nav({ type: "myhome-deposit" })}
 					onDone={() => goHome("myhome")}
 				/>
 			);

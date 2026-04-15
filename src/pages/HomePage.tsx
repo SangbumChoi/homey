@@ -6,6 +6,7 @@ import { GRADE_INFO } from "../utils/grades";
 import { searchAddress } from "../services/addressSearch";
 import { calculateDiagnosis } from "../utils/diagnosis";
 import { getRecentTrades, estimateRealTradePrice } from "../services/realEstateApi";
+import { fetchRegistrationDoc, parseUploadedDoc, type ParsedRegistrationDoc } from "../services/registrationDoc";
 import type { Address, DiagnosisResult } from "../types";
 import type { Page } from "../App";
 
@@ -125,6 +126,8 @@ function DiagnosisTab({ nav }: { nav: (p: Page) => void }) {
 	// ── Doc state ──
 	const fileRef = useRef<HTMLInputElement>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
+	const [parsedDoc, setParsedDoc] = useState<ParsedRegistrationDoc | null>(null);
+	const [docLoading, setDocLoading] = useState(false);
 	const [diagnosing, setDiagnosing] = useState(false);
 
 	// ── Derived ──
@@ -175,9 +178,33 @@ function DiagnosisTab({ nav }: { nav: (p: Page) => void }) {
 		setTimeout(() => docRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
 	};
 
-	const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const f = e.target.files?.[0];
-		if (f) setFileName(f.name);
+		if (!f) return;
+		setFileName(f.name);
+		setDocLoading(true);
+		try {
+			const parsed = await parseUploadedDoc(f);
+			setParsedDoc(parsed);
+		} catch {
+			setParsedDoc(null);
+		} finally {
+			setDocLoading(false);
+		}
+	};
+
+	const handleFetchDoc = async () => {
+		if (!currentAddress) return;
+		setDocLoading(true);
+		try {
+			const parsed = await fetchRegistrationDoc(currentAddress.roadAddress);
+			setParsedDoc(parsed);
+			setFileName("자동 발급");
+		} catch {
+			setParsedDoc(null);
+		} finally {
+			setDocLoading(false);
+		}
 	};
 
 	const handleDiagnose = async () => {
@@ -191,7 +218,7 @@ function DiagnosisTab({ nav }: { nav: (p: Page) => void }) {
 				address: currentAddress,
 				depositAmount: rawDeposit,
 				monthlyRent: rentNum || 0,
-				seniorDebt: 0,
+				seniorDebt: parsedDoc?.seniorDebt || 0,
 				hasRegistrationDoc: !!fileName,
 				realTradePrice,
 			});
@@ -209,6 +236,7 @@ function DiagnosisTab({ nav }: { nav: (p: Page) => void }) {
 			setDeposit("");
 			setRent("");
 			setFileName(null);
+			setParsedDoc(null);
 			setSearched(false);
 			setCurrentAddress(null);
 			nav({ type: "diagnosis-result", id: full.id });
@@ -224,6 +252,7 @@ function DiagnosisTab({ nav }: { nav: (p: Page) => void }) {
 		setDeposit("");
 		setRent("");
 		setFileName(null);
+		setParsedDoc(null);
 		setSearched(false);
 		setCurrentAddress(null);
 	};
@@ -381,48 +410,126 @@ function DiagnosisTab({ nav }: { nav: (p: Page) => void }) {
 					</div>
 				)}
 
-				{/* ── STEP 3: Doc upload + diagnose (shows after deposit entered) ── */}
+				{/* ── STEP 3: Doc upload/fetch + diagnose (shows after deposit entered) ── */}
 				{addressConfirmed && depositValid && (
 					<div ref={docRef} style={{ padding: 16, backgroundColor: "#fff", borderRadius: 14, border: "1px solid #E5E7E3" }}>
 						<div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-							<div style={{ width: 24, height: 24, borderRadius: "50%", backgroundColor: "#E5E7E3", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>3</div>
+							<div style={{ width: 24, height: 24, borderRadius: "50%", backgroundColor: parsedDoc ? "#1B3D35" : "#E5E7E3", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>
+								{parsedDoc ? "✓" : "3"}
+							</div>
 							<span style={{ fontSize: 15, fontWeight: 700, color: "#1B3D35" }}>등기부등본 (선택)</span>
 						</div>
 
 						<input ref={fileRef} type="file" accept="application/pdf,image/*" style={{ display: "none" }} onChange={handleFile} />
 
-						{!fileName ? (
-							<div
-								onClick={() => fileRef.current?.click()}
-								style={{ border: "2px dashed #E5E7E3", borderRadius: 12, padding: "28px 16px", textAlign: "center", cursor: "pointer", backgroundColor: "#FAF8F4" }}
-							>
-								<div style={{ fontSize: 28, marginBottom: 6 }}>📁</div>
-								<div style={{ fontSize: 14, fontWeight: 600 }}>등기부등본 업로드하기</div>
-								<div style={{ fontSize: 12, color: "#5C6B66", marginTop: 4 }}>PDF 또는 이미지 파일</div>
-							</div>
-						) : (
-							<div style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, backgroundColor: "#F0FFF4", borderRadius: 10, border: "1.5px solid #48BB78" }}>
-								<span style={{ fontSize: 18 }}>✅</span>
-								<div style={{ flex: 1 }}>
-									<div style={{ fontSize: 12, fontWeight: 600 }}>{fileName}</div>
-									<div style={{ fontSize: 11, color: "#276749", marginTop: 2 }}>업로드 완료</div>
+						{/* Upload / Fetch buttons — side by side */}
+						{!fileName && !docLoading && (
+							<div style={{ display: "flex", gap: 8 }}>
+								<div
+									onClick={() => fileRef.current?.click()}
+									style={{ flex: 1, border: "2px dashed #E5E7E3", borderRadius: 12, padding: "20px 8px", textAlign: "center", cursor: "pointer", backgroundColor: "#FAF8F4" }}
+								>
+									<div style={{ fontSize: 24, marginBottom: 4 }}>📄</div>
+									<div style={{ fontSize: 13, fontWeight: 600 }}>직접 업로드</div>
+									<div style={{ fontSize: 11, color: "#5C6B66", marginTop: 2 }}>PDF / 이미지</div>
 								</div>
-								<button
-									onClick={() => { setFileName(null); if (fileRef.current) fileRef.current.value = ""; }}
-									style={{ background: "none", border: "none", fontSize: 14, color: "#5C6B66", cursor: "pointer" }}
-								>✕</button>
+								<div
+									onClick={handleFetchDoc}
+									style={{ flex: 1, border: "2px dashed #E5E7E3", borderRadius: 12, padding: "20px 8px", textAlign: "center", cursor: "pointer", backgroundColor: "#FAF8F4" }}
+								>
+									<div style={{ fontSize: 24, marginBottom: 4 }}>🔍</div>
+									<div style={{ fontSize: 13, fontWeight: 600 }}>자동 발급받기</div>
+									<div style={{ fontSize: 11, color: "#5C6B66", marginTop: 2 }}>API 조회 (TBD)</div>
+								</div>
 							</div>
 						)}
 
-						<div style={{ marginTop: 10, backgroundColor: "#FFF8E1", borderRadius: 8, padding: 10 }}>
+						{/* Loading state */}
+						{docLoading && (
+							<div style={{ textAlign: "center", padding: "24px 0" }}>
+								<div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+								<div style={{ fontSize: 13, color: "#5C6B66" }}>등기부등본을 분석하고 있어요...</div>
+							</div>
+						)}
+
+						{/* Parsed result */}
+						{fileName && !docLoading && (
+							<>
+								<div style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, backgroundColor: "#F0FFF4", borderRadius: 10, border: "1.5px solid #48BB78", marginBottom: 10 }}>
+									<span style={{ fontSize: 18 }}>✅</span>
+									<div style={{ flex: 1 }}>
+										<div style={{ fontSize: 12, fontWeight: 600 }}>{fileName}</div>
+										<div style={{ fontSize: 11, color: "#276749", marginTop: 2 }}>
+											{parsedDoc ? "분석 완료" : "업로드 완료"}
+										</div>
+									</div>
+									<button
+										onClick={() => { setFileName(null); setParsedDoc(null); if (fileRef.current) fileRef.current.value = ""; }}
+										style={{ background: "none", border: "none", fontSize: 14, color: "#5C6B66", cursor: "pointer" }}
+									>✕</button>
+								</div>
+
+								{/* Extracted data display */}
+								{parsedDoc && (
+									<div style={{ padding: 12, backgroundColor: "#F8FAFF", borderRadius: 10, border: "1px solid #E5E7E3", marginBottom: 10 }}>
+										<div style={{ fontSize: 12, fontWeight: 700, color: "#1B3D35", marginBottom: 8 }}>추출된 정보</div>
+										<div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
+											<div style={{ display: "flex", justifyContent: "space-between" }}>
+												<span style={{ color: "#5C6B66" }}>소유자</span>
+												<span style={{ fontWeight: 600 }}>{parsedDoc.owner}</span>
+											</div>
+											<div style={{ display: "flex", justifyContent: "space-between" }}>
+												<span style={{ color: "#5C6B66" }}>선순위 채권 총액</span>
+												<span style={{ fontWeight: 600, color: parsedDoc.seniorDebt > 30000 ? "#F44336" : "#1B3D35" }}>
+													{parsedDoc.seniorDebt.toLocaleString()}만원
+												</span>
+											</div>
+											{parsedDoc.mortgages.map((m, i) => (
+												<div key={i} style={{ display: "flex", justifyContent: "space-between", paddingLeft: 12 }}>
+													<span style={{ color: "#9BA6A2" }}>└ {m.creditor}</span>
+													<span style={{ color: "#5C6B66" }}>{m.amount.toLocaleString()}만원</span>
+												</div>
+											))}
+											<div style={{ display: "flex", justifyContent: "space-between" }}>
+												<span style={{ color: "#5C6B66" }}>압류/가압류</span>
+												<span style={{ fontWeight: 600, color: parsedDoc.hasSeizure ? "#F44336" : "#00B274" }}>
+													{parsedDoc.hasSeizure ? "있음" : "없음"}
+												</span>
+											</div>
+											<div style={{ display: "flex", justifyContent: "space-between" }}>
+												<span style={{ color: "#5C6B66" }}>경매 개시</span>
+												<span style={{ fontWeight: 600, color: parsedDoc.hasAuction ? "#F44336" : "#00B274" }}>
+													{parsedDoc.hasAuction ? "있음" : "없음"}
+												</span>
+											</div>
+											{parsedDoc.ownershipTransferCount > 0 && (
+												<div style={{ display: "flex", justifyContent: "space-between" }}>
+													<span style={{ color: "#5C6B66" }}>소유권 이전 (최근 5년)</span>
+													<span style={{ fontWeight: 600 }}>{parsedDoc.ownershipTransferCount}회</span>
+												</div>
+											)}
+										</div>
+										{parsedDoc.warnings.length > 0 && (
+											<div style={{ marginTop: 8, padding: 8, backgroundColor: "#FFF5F5", borderRadius: 6 }}>
+												{parsedDoc.warnings.map((w, i) => (
+													<div key={i} style={{ fontSize: 11, color: "#F44336" }}>⚠️ {w}</div>
+												))}
+											</div>
+										)}
+									</div>
+								)}
+							</>
+						)}
+
+						<div style={{ marginTop: 6, backgroundColor: "#FFF8E1", borderRadius: 8, padding: 10 }}>
 							<div style={{ fontSize: 11, color: "#F57F17", lineHeight: 1.5 }}>
 								📌 등기부등본 없이도 진단할 수 있어요. 선순위 채권 항목은 중립값으로 처리돼요.
 							</div>
 						</div>
 
 						<div style={{ marginTop: 14 }}>
-							<Button color="dark" onClick={handleDiagnose} loading={diagnosing}>
-								{fileName ? "진단 시작하기" : "등기부등본 없이 진단하기"}
+							<Button color="dark" onClick={handleDiagnose} loading={diagnosing} disabled={docLoading}>
+								{parsedDoc ? "정밀 진단 시작하기" : fileName ? "진단 시작하기" : "등기부등본 없이 진단하기"}
 							</Button>
 						</div>
 					</div>

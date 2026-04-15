@@ -40,7 +40,7 @@ export function DiagnosisSearchPage({ mode, onBack, nav }: Props) {
 	const handleConfirm = () => {
 		if (!selected) return;
 		setCurrentAddress({ ...selected, detailAddress: detail.trim() || undefined });
-		if (mode === "myhome") nav({ type: "myhome-deposit" });
+		if (mode === "myhome") nav({ type: "myhome-register" });
 		else nav({ type: "diagnosis-deposit" });
 	};
 

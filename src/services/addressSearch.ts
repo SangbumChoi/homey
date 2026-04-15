@@ -1,9 +1,80 @@
 import type { Address } from "../types";
 
+const KAKAO_API_KEY = import.meta.env.VITE_KAKAO_API_KEY as string | undefined;
+
+/**
+ * Search addresses using Kakao Address API.
+ * Falls back to mock data if VITE_KAKAO_API_KEY is not set.
+ */
 export async function searchAddress(keyword: string): Promise<Address[]> {
-	// In web/AIT context, always use mock for now
-	return getMockAddresses(keyword);
+	if (!KAKAO_API_KEY) {
+		console.warn("[addressSearch] VITE_KAKAO_API_KEY not set — using mock data");
+		return getMockAddresses(keyword);
+	}
+
+	try {
+		const res = await fetch(
+			`https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(keyword)}&size=10`,
+			{
+				headers: { Authorization: `KakaoAK ${KAKAO_API_KEY}` },
+			},
+		);
+
+		if (!res.ok) {
+			console.error(`[addressSearch] Kakao API error: ${res.status}`);
+			return getMockAddresses(keyword);
+		}
+
+		const data = await res.json();
+		return parseKakaoResponse(data);
+	} catch (err) {
+		console.error("[addressSearch] Kakao API request failed:", err);
+		return getMockAddresses(keyword);
+	}
 }
+
+// ── Kakao API response types ──
+
+interface KakaoDocument {
+	address_name: string;
+	address_type: string;
+	road_address?: {
+		address_name: string;
+		building_name: string;
+		zone_no: string;
+		region_1depth_name: string;
+		region_2depth_name: string;
+	};
+	address?: {
+		address_name: string;
+		region_1depth_name: string;
+		region_2depth_name: string;
+	};
+}
+
+interface KakaoResponse {
+	documents: KakaoDocument[];
+	meta: { total_count: number };
+}
+
+function parseKakaoResponse(data: KakaoResponse): Address[] {
+	return data.documents
+		.filter((doc) => doc.road_address || doc.address)
+		.map((doc) => {
+			const road = doc.road_address;
+			const addr = doc.address;
+			return {
+				roadAddress: road?.address_name || addr?.address_name || doc.address_name,
+				jibunAddress: addr?.address_name || doc.address_name,
+				buildingName: road?.building_name || undefined,
+				zipCode: road?.zone_no || "",
+				sido: road?.region_1depth_name || addr?.region_1depth_name || "",
+				sigungu: road?.region_2depth_name || addr?.region_2depth_name || "",
+			};
+		});
+}
+
+// ── Mock fallback ──
 
 function getMockAddresses(keyword: string): Address[] {
 	const pool: Address[] = [
