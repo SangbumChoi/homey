@@ -24,6 +24,7 @@ export const useAppStore = create<AppState>((set) => ({
 	diagnosisHistory: [],
 	addDiagnosis: (result) =>
 		set((state) => {
+			if (state.diagnosisHistory.some((d) => d.id === result.id)) return state;
 			const updatedMyHome =
 				state.myHome &&
 				state.myHome.address.roadAddress === result.address.roadAddress
