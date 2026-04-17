@@ -7,6 +7,7 @@ interface AppState {
 
 	diagnosisHistory: DiagnosisResult[];
 	addDiagnosis: (result: DiagnosisResult) => void;
+	updateDiagnosis: (id: string, patch: Partial<DiagnosisResult>) => void;
 
 	myHome: MyHome | null;
 	setMyHome: (home: MyHome) => void;
@@ -33,6 +34,13 @@ export const useAppStore = create<AppState>((set) => ({
 				myHome: updatedMyHome,
 			};
 		}),
+
+	updateDiagnosis: (id, patch) =>
+		set((state) => ({
+			diagnosisHistory: state.diagnosisHistory.map((d) =>
+				d.id === id ? { ...d, ...patch } : d,
+			),
+		})),
 
 	myHome: null,
 	setMyHome: (home) => set({ myHome: home }),

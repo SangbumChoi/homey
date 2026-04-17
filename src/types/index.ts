@@ -22,6 +22,20 @@ export interface Address {
 	sigungu: string;
 }
 
+/** 임대인 리스크 입력값 (등기부등본은 항상 확인 전제) */
+export interface LandlordRiskInput {
+	/** 등기부등본 — 압류/가압류 여부 */
+	hasSeizure: boolean;
+	/** 등기부등본 — 경매 개시 여부 */
+	hasAuction: boolean;
+	/** 세금 체납 여부 (납세증명서 업로드 후 확인) */
+	taxDelinquency: "none" | "exists" | "unchecked";
+	/** HUG 보증사고 이력 여부 */
+	guaranteeAccident: "none" | "exists" | "unchecked";
+	/** 임대인 보유 주택 수 */
+	propertyCount: "one_two" | "three_five" | "six_plus" | "unknown";
+}
+
 export interface DiagnosisInput {
 	address: Address;
 	depositAmount: number;
@@ -30,6 +44,9 @@ export interface DiagnosisInput {
 	registrationDocData?: ParsedRegistrationDoc;
 	seniorDebt?: number;
 	realTradePrice?: number;
+	landlordRiskData?: LandlordRiskInput;
+	/** 전세보증보험 실제 가입 여부 (A vs A' 구분) */
+	insuranceEnrolled?: boolean;
 }
 
 export interface DiagnosisScore {
@@ -65,6 +82,9 @@ export interface DiagnosisResult {
 	hasRegistrationDoc: boolean;
 	realTradePrice?: number;
 	seniorDebt?: number;
+	landlordRiskData?: LandlordRiskInput;
+	/** 보증보험 가입 가능하지만 미가입이면 등급 뒤에 ' 표시 */
+	insuranceEnrolled?: boolean;
 }
 
 export interface MonitoringAlert {
