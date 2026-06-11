@@ -3,8 +3,8 @@ import { useAuctionStore } from "../store/useAuctionStore";
 import { auctionKey, formatKRW } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import {
+	DdayPill,
 	DetailSheet,
-	dDayLabel,
 	displayName,
 	rowTitle,
 	todayStr,
@@ -82,77 +82,141 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 
 	return (
 		<>
-			{/* ── 헤더 ── */}
-			<div style={{ padding: "24px 20px 0" }}>
-				<div style={{ fontSize: 22, fontWeight: 800, color: "#1B3D35" }}>
+			{/* ── 다크 그라디언트 히어로 ── */}
+			<div
+				style={{
+					position: "relative",
+					overflow: "hidden",
+					background:
+						"linear-gradient(135deg, #0C2620 0%, #1B3D35 58%, #2C5648 100%)",
+					padding: "30px 20px 46px",
+				}}
+			>
+				{/* 장식용 글로우 */}
+				<div
+					style={{
+						position: "absolute",
+						top: -70,
+						right: -50,
+						width: 220,
+						height: 220,
+						borderRadius: "50%",
+						background:
+							"radial-gradient(circle, rgba(124,212,178,0.22) 0%, rgba(124,212,178,0) 70%)",
+						pointerEvents: "none",
+					}}
+				/>
+				<div
+					style={{
+						position: "absolute",
+						right: 14,
+						top: 22,
+						fontSize: 72,
+						opacity: 0.1,
+						pointerEvents: "none",
+					}}
+				>
+					⚖️
+				</div>
+
+				<div
+					style={{
+						fontSize: 12,
+						fontWeight: 600,
+						color: "rgba(255,255,255,0.55)",
+						letterSpacing: "0.2px",
+					}}
+				>
+					{fmtKoreanDate(dataDate)} 데이터 기준
+				</div>
+				<div
+					style={{
+						fontSize: 25,
+						fontWeight: 800,
+						color: "#fff",
+						letterSpacing: "-0.5px",
+						marginTop: 5,
+					}}
+				>
 					오늘의 경매
 				</div>
-				<div style={{ fontSize: 13, color: "#5C6B66", marginTop: 4 }}>
-					{fmtKoreanDate(dataDate)} 데이터 기준 · 진행 {upcoming.length}건
+
+				{/* 히어로 통계 */}
+				<div style={{ display: "flex", marginTop: 24 }}>
+					<HeroStat
+						label="진행 물건"
+						value={upcoming.length}
+						onClick={() => goAuction()}
+					/>
+					<HeroDivider />
+					<HeroStat
+						label="이번 주 기일"
+						value={thisWeek.length}
+						highlight={thisWeek.length > 0}
+						onClick={() => goAuction()}
+					/>
+					<HeroDivider />
+					<HeroStat
+						label="관심 물건"
+						value={favorites.length}
+						onClick={goFavorites}
+					/>
 				</div>
 			</div>
 
-			{/* ── 요약 카드 ── */}
+			{/* ── 빠른 필터 — 히어로에 겹쳐 떠 있는 카드 ── */}
 			<div
+				className="rise"
 				style={{
-					display: "flex",
-					margin: "16px 20px 0",
-					backgroundColor: "#FAF8F4",
-					borderRadius: 16,
-					padding: "16px 0",
+					margin: "-26px 20px 0",
+					position: "relative",
+					backgroundColor: "#fff",
+					borderRadius: 20,
+					padding: "14px 16px 16px",
+					boxShadow: "0 8px 24px rgba(12, 38, 32, 0.10)",
 				}}
 			>
-				<Stat
-					label="진행 물건"
-					value={upcoming.length}
-					onClick={() => goAuction()}
-				/>
-				<StatDivider />
-				<Stat
-					label="이번 주 기일"
-					value={thisWeek.length}
-					color={thisWeek.length > 0 ? "#F44336" : undefined}
-					onClick={() => goAuction()}
-				/>
-				<StatDivider />
-				<Stat label="관심 물건" value={favorites.length} onClick={goFavorites} />
-			</div>
-
-			{/* ── 빠른 필터 ── */}
-			<div
-				className="hide-scrollbar"
-				style={{
-					display: "flex",
-					gap: 8,
-					overflowX: "auto",
-					padding: "12px 20px 0",
-				}}
-			>
-				{QUICK_FILTERS.map(({ label, preset }) => (
-					<button
-						key={label}
-						className="touchable"
-						onClick={() => goAuction(preset)}
-						style={{
-							padding: "9px 14px",
-							borderRadius: 18,
-							border: "none",
-							backgroundColor: "#FAF8F4",
-							color: "#1B3D35",
-							fontSize: 13,
-							fontWeight: 600,
-							cursor: "pointer",
-							whiteSpace: "nowrap",
-							flexShrink: 0,
-						}}
-					>
-						{label}
-					</button>
-				))}
+				<div
+					style={{
+						fontSize: 12,
+						fontWeight: 700,
+						color: "#9BA6A2",
+						marginBottom: 10,
+					}}
+				>
+					빠르게 찾기
+				</div>
+				<div
+					className="hide-scrollbar"
+					style={{ display: "flex", gap: 8, overflowX: "auto" }}
+				>
+					{QUICK_FILTERS.map(({ label, preset }) => (
+						<button
+							key={label}
+							className="touchable"
+							onClick={() => goAuction(preset)}
+							style={{
+								padding: "9px 13px",
+								borderRadius: 18,
+								border: "none",
+								backgroundColor: "#F4F4F0",
+								color: "#1B3D35",
+								fontSize: 13,
+								fontWeight: 600,
+								cursor: "pointer",
+								whiteSpace: "nowrap",
+								flexShrink: 0,
+							}}
+						>
+							{label}
+						</button>
+					))}
+				</div>
 			</div>
 
 			{/* ── 관심 물건 기일 ── */}
 			<Section
+				delay={0.08}
 				title="관심 물건 기일"
 				action={
 					favorites.length > 0
@@ -171,61 +235,49 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 					<EmptyCard emoji="🗓️" text="관심 물건의 매각기일이 모두 지났어요" />
 				) : (
 					<RowCard>
-						{favSoon.map((item, idx) => {
-							const dday = dDayLabel(item.saleDate);
-							return (
-								<div
-									key={auctionKey(item)}
-									className="touchable"
-									onClick={() => setDetail(item)}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 10,
-										padding: "13px 16px",
-										borderTop: idx === 0 ? "none" : "1px solid #F0EDE6",
-										cursor: "pointer",
-									}}
-								>
-									<div style={{ flex: 1, minWidth: 0 }}>
-										<div
-											style={{
-												fontSize: 13,
-												fontWeight: 700,
-												color: "#1B3D35",
-												whiteSpace: "nowrap",
-												overflow: "hidden",
-												textOverflow: "ellipsis",
-											}}
-										>
-											{rowTitle(item)}
-										</div>
-										<div
-											style={{ fontSize: 12, color: "#5C6B66", marginTop: 3 }}
-										>
-											{formatKRW(item.minPrice)} ·{" "}
-											{item.saleDate.slice(5).replace("-", ".")}
-										</div>
-									</div>
-									<span
+						{favSoon.map((item, idx) => (
+							<div
+								key={auctionKey(item)}
+								className="touchable"
+								onClick={() => setDetail(item)}
+								style={{
+									display: "flex",
+									alignItems: "center",
+									gap: 10,
+									padding: "13px 16px",
+									borderTop: idx === 0 ? "none" : "1px solid #F4F4F0",
+									cursor: "pointer",
+								}}
+							>
+								<div style={{ flex: 1, minWidth: 0 }}>
+									<div
 										style={{
 											fontSize: 13,
-											fontWeight: 800,
-											color: dday.color,
-											flexShrink: 0,
+											fontWeight: 700,
+											color: "#1B3D35",
+											whiteSpace: "nowrap",
+											overflow: "hidden",
+											textOverflow: "ellipsis",
 										}}
 									>
-										{dday.label}
-									</span>
+										{rowTitle(item)}
+									</div>
+									<div
+										style={{ fontSize: 12, color: "#5C6B66", marginTop: 3 }}
+									>
+										{formatKRW(item.minPrice)} ·{" "}
+										{item.saleDate.slice(5).replace("-", ".")}
+									</div>
 								</div>
-							);
-						})}
+								<DdayPill saleDate={item.saleDate} />
+							</div>
+						))}
 					</RowCard>
 				)}
 			</Section>
 
 			{/* ── 가격 변동 ── */}
-			<Section title="최저가 하락">
+			<Section delay={0.14} title="최저가 하락">
 				{priceDrops.length === 0 ? (
 					<EmptyCard
 						emoji="📊"
@@ -316,15 +368,15 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 }
 
 /* ────────────────── 소품 ────────────────── */
-function Stat({
+function HeroStat({
 	label,
 	value,
-	color,
+	highlight,
 	onClick,
 }: {
 	label: string;
 	value: number;
-	color?: string;
+	highlight?: boolean;
 	onClick?: () => void;
 }) {
 	return (
@@ -338,39 +390,57 @@ function Stat({
 		>
 			<div
 				style={{
-					fontSize: 20,
+					fontSize: 22,
 					fontWeight: 800,
-					color: color ?? "#1B3D35",
+					color: highlight ? "#FF8A80" : "#fff",
 					lineHeight: 1.2,
+					letterSpacing: "-0.3px",
 				}}
 			>
 				{value}
 				<span style={{ fontSize: 13, fontWeight: 600, marginLeft: 1 }}>건</span>
 			</div>
-			<div style={{ fontSize: 11, color: "#5C6B66", marginTop: 3 }}>
+			<div
+				style={{
+					fontSize: 11,
+					color: "rgba(255,255,255,0.55)",
+					marginTop: 4,
+				}}
+			>
 				{label}
 			</div>
 		</div>
 	);
 }
 
-function StatDivider() {
+function HeroDivider() {
 	return (
-		<div style={{ width: 1, backgroundColor: "#E8E4DB", margin: "4px 0" }} />
+		<div
+			style={{
+				width: 1,
+				backgroundColor: "rgba(255,255,255,0.14)",
+				margin: "5px 0",
+			}}
+		/>
 	);
 }
 
 function Section({
 	title,
 	action,
+	delay = 0,
 	children,
 }: {
 	title: string;
 	action?: { label: string; onClick: () => void };
+	delay?: number;
 	children: React.ReactNode;
 }) {
 	return (
-		<div style={{ padding: "24px 20px 0" }}>
+		<div
+			className="rise"
+			style={{ padding: "24px 20px 0", animationDelay: `${delay}s` }}
+		>
 			<div
 				style={{
 					display: "flex",
@@ -408,9 +478,11 @@ function RowCard({ children }: { children: React.ReactNode }) {
 	return (
 		<div
 			style={{
-				backgroundColor: "#FAF8F4",
-				borderRadius: 16,
+				backgroundColor: "#fff",
+				borderRadius: 20,
 				overflow: "hidden",
+				border: "1px solid #F2F1ED",
+				boxShadow: "0 4px 16px rgba(12, 38, 32, 0.05)",
 			}}
 		>
 			{children}
@@ -432,13 +504,15 @@ function EmptyCard({
 	return (
 		<div
 			style={{
-				backgroundColor: "#FAF8F4",
-				borderRadius: 16,
-				padding: "22px 16px",
+				backgroundColor: "#fff",
+				borderRadius: 20,
+				border: "1px solid #F2F1ED",
+				boxShadow: "0 4px 16px rgba(12, 38, 32, 0.05)",
+				padding: "24px 16px",
 				textAlign: "center",
 			}}
 		>
-			<div style={{ fontSize: 26, marginBottom: 8 }}>{emoji}</div>
+			<div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
 			<div
 				style={{
 					fontSize: 13,

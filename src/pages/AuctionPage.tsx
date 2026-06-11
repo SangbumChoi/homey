@@ -111,15 +111,40 @@ export function todayStr(): string {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function dDayLabel(saleDate: string): { label: string; color: string } {
+export function dDayLabel(saleDate: string): {
+	label: string;
+	color: string;
+	bg: string;
+} {
 	const diff = Math.round(
 		(new Date(saleDate).getTime() - new Date(todayStr()).getTime()) / 86400000,
 	);
-	if (diff < 0) return { label: "기일 지남", color: "#9BA6A2" };
-	if (diff === 0) return { label: "D-Day", color: "#F44336" };
-	if (diff <= 7) return { label: `D-${diff}`, color: "#F44336" };
-	if (diff <= 14) return { label: `D-${diff}`, color: "#FF9800" };
-	return { label: `D-${diff}`, color: "#1B3D35" };
+	if (diff < 0) return { label: "기일 지남", color: "#9BA6A2", bg: "#F0F2EF" };
+	if (diff === 0) return { label: "D-Day", color: "#D32F2F", bg: "#FFEBEE" };
+	if (diff <= 7) return { label: `D-${diff}`, color: "#D32F2F", bg: "#FFEBEE" };
+	if (diff <= 14)
+		return { label: `D-${diff}`, color: "#E65100", bg: "#FFF3E0" };
+	return { label: `D-${diff}`, color: "#1B3D35", bg: "#E7EFEC" };
+}
+
+/** 매각기일 D-day 알약 배지 */
+export function DdayPill({ saleDate }: { saleDate: string }) {
+	const d = dDayLabel(saleDate);
+	return (
+		<span
+			style={{
+				fontSize: 11,
+				fontWeight: 800,
+				color: d.color,
+				backgroundColor: d.bg,
+				borderRadius: 6,
+				padding: "3px 7px",
+				whiteSpace: "nowrap",
+			}}
+		>
+			{d.label}
+		</span>
+	);
 }
 
 /* ────────────────── 메인 ────────────────── */
@@ -307,7 +332,14 @@ export function AuctionTab({
 					}}
 				>
 					<div>
-						<div style={{ fontSize: 20, fontWeight: 800, color: "#1B3D35" }}>
+						<div
+					style={{
+						fontSize: 22,
+						fontWeight: 800,
+						color: "#1B3D35",
+						letterSpacing: "-0.5px",
+					}}
+				>
 							경매 물건
 						</div>
 						<div style={{ fontSize: 12, color: "#5C6B66", marginTop: 2 }}>
@@ -357,6 +389,7 @@ export function AuctionTab({
 					zIndex: 10,
 					backgroundColor: "#fff",
 					borderBottom: "1px solid #F0F2EF",
+					boxShadow: "0 4px 12px rgba(15, 43, 37, 0.04)",
 				}}
 			>
 			<div
@@ -731,7 +764,6 @@ export function AuctionRow({
 	onToggleFav?: () => void;
 	onClick: () => void;
 }) {
-	const dday = dDayLabel(item.saleDate);
 	const isShare = item.note?.includes("지분") ?? false;
 	const discounted = item.minRate < 100;
 	const areaText =
@@ -791,26 +823,42 @@ export function AuctionRow({
 					display: "flex",
 					alignItems: "center",
 					gap: 6,
-					marginBottom: 4,
+					marginBottom: 5,
 				}}
 			>
-				<span style={{ fontSize: 17, fontWeight: 800, color: "#1B3D35" }}>
+				<span
+					style={{
+						fontSize: 18,
+						fontWeight: 800,
+						color: "#1B3D35",
+						letterSpacing: "-0.3px",
+					}}
+				>
 					{formatKRW(item.minPrice)}
 				</span>
 				{discounted && (
-					<span style={{ fontSize: 12, fontWeight: 700, color: "#F44336" }}>
-						감정가의 {item.minRate}%
+					<span
+						style={{
+							fontSize: 11,
+							fontWeight: 800,
+							color: "#D32F2F",
+							backgroundColor: "#FFEBEE",
+							borderRadius: 6,
+							padding: "3px 7px",
+						}}
+					>
+						감정가 {item.minRate}%
 					</span>
 				)}
 				{isShare && (
 					<span
 						style={{
-							fontSize: 10,
-							fontWeight: 700,
-							color: "#F44336",
-							backgroundColor: "#FFF5F5",
-							borderRadius: 4,
-							padding: "1px 5px",
+							fontSize: 11,
+							fontWeight: 800,
+							color: "#D32F2F",
+							backgroundColor: "#FFEBEE",
+							borderRadius: 6,
+							padding: "3px 7px",
 						}}
 					>
 						지분
@@ -818,14 +866,30 @@ export function AuctionRow({
 				)}
 			</div>
 
-			{/* 3줄: 면적 · 평당가 · 유찰 · 법원 · 기일 */}
-			<div style={{ fontSize: 12, color: "#5C6B66", lineHeight: 1.5 }}>
-				{areaText} · 평당 {perPyeong} ·{" "}
-				{item.failCount === 0 ? "신건" : `유찰 ${item.failCount}회`} ·{" "}
-				{shortCourt(item.court)} ·{" "}
-				<span style={{ color: dday.color, fontWeight: 600 }}>
-					{dday.label}
+			{/* 3줄: 면적 · 평당가 · 유찰 · 법원 + 기일 배지 */}
+			<div
+				style={{
+					display: "flex",
+					alignItems: "center",
+					gap: 8,
+					fontSize: 12,
+					color: "#5C6B66",
+					lineHeight: 1.5,
+				}}
+			>
+				<span
+					style={{
+						flex: 1,
+						whiteSpace: "nowrap",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
+					}}
+				>
+					{areaText} · 평당 {perPyeong} ·{" "}
+					{item.failCount === 0 ? "신건" : `유찰 ${item.failCount}회`} ·{" "}
+					{shortCourt(item.court)}
 				</span>
+				<DdayPill saleDate={item.saleDate} />
 			</div>
 		</div>
 	);
@@ -1041,21 +1105,23 @@ function FilterChip({
 }) {
 	return (
 		<button
+			className="touchable"
 			onClick={onClick}
 			style={{
-				padding: "8px 12px",
+				padding: "9px 13px",
 				borderRadius: 18,
-				border: `1px solid ${active ? "#1B3D35" : "#E5E7E3"}`,
-				backgroundColor: active ? "#1B3D35" : "#fff",
+				border: "none",
+				backgroundColor: active ? "#1B3D35" : "#F4F4F0",
 				color: active ? "#fff" : "#1B3D35",
 				fontSize: 13,
-				fontWeight: active ? 700 : 500,
+				fontWeight: active ? 700 : 600,
 				cursor: "pointer",
 				whiteSpace: "nowrap",
 				flexShrink: 0,
 			}}
 		>
-			{label} <span style={{ fontSize: 10 }}>▾</span>
+			{label}{" "}
+			<span style={{ fontSize: 10, opacity: active ? 0.8 : 0.45 }}>▾</span>
 		</button>
 	);
 }

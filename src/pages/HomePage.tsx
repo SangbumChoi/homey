@@ -23,7 +23,14 @@ export function HomePage({ activeTab }: Props) {
 
 	return (
 		<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-			<div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
+			<div
+				style={{
+					flex: 1,
+					overflowY: "auto",
+					paddingBottom: 8,
+					backgroundColor: "#fff",
+				}}
+			>
 				{tab === "home" && (
 					<DashboardTab
 						goAuction={goAuction}
@@ -44,8 +51,8 @@ export function HomePage({ activeTab }: Props) {
 			<div
 				style={{
 					display: "flex",
-					borderTop: "1px solid #E5E7E3",
 					backgroundColor: "#fff",
+					boxShadow: "0 -4px 16px rgba(12, 38, 32, 0.06)",
 					flexShrink: 0,
 					paddingBottom: "env(safe-area-inset-bottom, 0px)",
 				}}

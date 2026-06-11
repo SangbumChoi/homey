@@ -47,7 +47,14 @@ export function RecordsTab() {
 	return (
 		<>
 			<div style={{ padding: "20px 20px 0" }}>
-				<div style={{ fontSize: 20, fontWeight: 800, color: "#1B3D35" }}>
+				<div
+					style={{
+						fontSize: 22,
+						fontWeight: 800,
+						color: "#1B3D35",
+						letterSpacing: "-0.5px",
+					}}
+				>
 					임장·입찰 기록
 				</div>
 				<div style={{ fontSize: 12, color: "#5C6B66", marginTop: 2 }}>
