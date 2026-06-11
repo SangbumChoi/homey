@@ -146,9 +146,15 @@ export function DdayPill({ saleDate }: { saleDate: string }) {
 	const d = dDayLabel(saleDate);
 	const text: Record<typeof d.level, string> = {
 		past: "#888",
-		urgent: "#fff",
+		urgent: "#111",
 		soon: "#111",
-		normal: "#111",
+		normal: "#555",
+	};
+	const border: Record<typeof d.level, string> = {
+		past: "#BBB4A4",
+		urgent: "#111",
+		soon: "#111",
+		normal: "#C9C2AE",
 	};
 	return (
 		<span
@@ -157,7 +163,7 @@ export function DdayPill({ saleDate }: { saleDate: string }) {
 				fontWeight: 900,
 				color: text[d.level],
 				backgroundColor: d.bg,
-				border: `2px solid ${d.level === "past" ? "#BBB4A4" : "#111"}`,
+				border: `2px solid ${border[d.level]}`,
 				borderRadius: 7,
 				padding: "2px 6px",
 				whiteSpace: "nowrap",
@@ -402,7 +408,7 @@ export function AuctionTab({
 							fontSize: 12,
 							border: "2px solid #111",
 							backgroundColor: uploadMsg.error ? "#FF6B6B" : "#B6F09C",
-							color: uploadMsg.error ? "#fff" : "#111",
+							color: "#111",
 							fontWeight: 700,
 						}}
 					>
@@ -802,12 +808,12 @@ export function AuctionRow({
 
 	return (
 		<div
-			className="nb nb-press"
+			className="touchable"
 			onClick={onClick}
 			style={{
-				margin: "10px 16px",
-				borderRadius: 14,
-				padding: "13px 15px",
+				backgroundColor: "#fff",
+				padding: "13px 20px",
+				borderBottom: "1px solid #EFE9D8",
 				cursor: "pointer",
 			}}
 		>
@@ -872,7 +878,7 @@ export function AuctionRow({
 						style={{
 							fontSize: 10,
 							fontWeight: 900,
-							color: "#fff",
+							color: "#111",
 							backgroundColor: "#FF6B6B",
 							border: "2px solid #111",
 							borderRadius: 7,
@@ -887,7 +893,7 @@ export function AuctionRow({
 						style={{
 							fontSize: 10,
 							fontWeight: 900,
-							color: "#fff",
+							color: "#111",
 							backgroundColor: "#FF6B6B",
 							border: "2px solid #111",
 							borderRadius: 7,
@@ -1143,11 +1149,11 @@ function FilterChip({
 			style={{
 				padding: "7px 11px",
 				borderRadius: 18,
-				border: "2.5px solid #111",
+				border: active ? "2.5px solid #111" : "1.5px solid #C9C2AE",
 				backgroundColor: active ? "#B6F09C" : "#fff",
-				color: "#111",
+				color: active ? "#111" : "#333",
 				fontSize: 13,
-				fontWeight: active ? 900 : 700,
+				fontWeight: active ? 900 : 600,
 				boxShadow: active ? "3px 3px 0 #111" : "none",
 				cursor: "pointer",
 				whiteSpace: "nowrap",

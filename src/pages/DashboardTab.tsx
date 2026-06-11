@@ -146,17 +146,16 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 				{QUICK_FILTERS.map(({ label, preset }) => (
 					<button
 						key={label}
-						className="nb-press"
+						className="touchable"
 						onClick={() => goAuction(preset)}
 						style={{
 							padding: "8px 12px",
 							borderRadius: 18,
-							border: "2.5px solid #111",
+							border: "2px solid #111",
 							backgroundColor: "#fff",
 							color: "#111",
 							fontSize: 13,
 							fontWeight: 800,
-							boxShadow: "3px 3px 0 #111",
 							cursor: "pointer",
 							whiteSpace: "nowrap",
 							flexShrink: 0,
@@ -416,8 +415,12 @@ function Section({
 function RowCard({ children }: { children: React.ReactNode }) {
 	return (
 		<div
-			className="nb"
-			style={{ borderRadius: 14, overflow: "hidden" }}
+			style={{
+				backgroundColor: "#fff",
+				border: "2px solid #111",
+				borderRadius: 14,
+				overflow: "hidden",
+			}}
 		>
 			{children}
 		</div>
@@ -437,8 +440,13 @@ function EmptyCard({
 }) {
 	return (
 		<div
-			className="nb"
-			style={{ borderRadius: 14, padding: "24px 16px", textAlign: "center" }}
+			style={{
+				backgroundColor: "#fff",
+				border: "2px solid #111",
+				borderRadius: 14,
+				padding: "24px 16px",
+				textAlign: "center",
+			}}
 		>
 			<div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
 			<div

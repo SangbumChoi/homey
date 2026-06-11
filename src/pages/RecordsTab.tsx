@@ -91,12 +91,12 @@ export function RecordsTab() {
 						return (
 							<div
 								key={key}
-								className="nb nb-press"
+								className="touchable"
 								onClick={() => setEditKey(key)}
 								style={{
-									margin: "10px 16px",
-									borderRadius: 14,
-									padding: "13px 15px",
+									backgroundColor: "#fff",
+									padding: "13px 20px",
+									borderBottom: "1px solid #EFE9D8",
 									cursor: "pointer",
 								}}
 							>

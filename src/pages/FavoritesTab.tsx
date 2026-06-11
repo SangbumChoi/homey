@@ -103,11 +103,14 @@ export function FavoritesTab({ goAuction }: { goAuction?: () => void }) {
 									style={{
 										padding: "7px 16px",
 										borderRadius: 18,
-										border: "2.5px solid #111",
+										border:
+											view === key
+												? "2.5px solid #111"
+												: "1.5px solid #C9C2AE",
 										backgroundColor: view === key ? "#B6F09C" : "#fff",
-										color: "#111",
+										color: view === key ? "#111" : "#333",
 										fontSize: 13,
-										fontWeight: view === key ? 900 : 700,
+										fontWeight: view === key ? 900 : 600,
 										boxShadow: view === key ? "3px 3px 0 #111" : "none",
 										cursor: "pointer",
 									}}
@@ -180,7 +183,7 @@ function CompareTable({
 	const cellStyle: React.CSSProperties = {
 		padding: "10px 10px",
 		fontSize: 12,
-		borderBottom: "2px solid #111",
+		borderBottom: "1px solid #E5DFC9",
 		whiteSpace: "nowrap",
 	};
 
@@ -204,6 +207,7 @@ function CompareTable({
 								onClick={() => onSelect(item)}
 								style={{
 									...cellStyle,
+									borderBottom: "2px solid #111",
 									minWidth: 120,
 									maxWidth: 140,
 									whiteSpace: "normal",

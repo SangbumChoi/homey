@@ -65,7 +65,7 @@ export function RecordSheet({ itemKey, address, onClose }: Props) {
 		width: "100%",
 		padding: "11px 12px",
 		borderRadius: 10,
-		border: "2px solid #111",
+		border: "1.5px solid #C9C2AE",
 		fontSize: 15,
 		color: "#111",
 		outline: "none",
@@ -108,7 +108,8 @@ export function RecordSheet({ itemKey, address, onClose }: Props) {
 								flex: 1,
 								padding: "9px 0",
 								borderRadius: 10,
-								border: "2.5px solid #111",
+								border:
+									result === key ? "2.5px solid #111" : "1.5px solid #C9C2AE",
 								backgroundColor: result === key ? "#FFD43B" : "#fff",
 								color: "#111",
 								boxShadow: result === key ? "3px 3px 0 #111" : "none",
