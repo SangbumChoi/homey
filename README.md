@@ -1,6 +1,16 @@
-# 호미 (Homey) — 전세 안전 진단 미니앱
+# 호미 (Homey) — 법원경매 물건 탐색 미니앱
 
-> 토스 앱 내에서 실행되는 전세 보증금 안전 진단 서비스
+> 토스 앱 내에서 실행되는 아파트 경매 물건 탐색·비교·기록 서비스
+
+매주 받는 법원경매 엑셀 파일을 업로드하면 물건을 필터·정렬·비교하고,
+임장 메모와 입찰 결과를 기록할 수 있어요.
+
+| 탭 | 기능 |
+|----|------|
+| **홈** | 대시보드 — 이번 주 기일, 관심 물건 D-day, 업로드 간 최저가 하락 추적, 빠른 필터 |
+| **경매** | 물건 리스트 — 칩 필터(지역/법원/가격/면적/조건) + 정렬, 엑셀 업로드, 상세 바텀시트 |
+| **관심** | 별표로 담은 물건 목록 + 지표별 나란히 비교 표 |
+| **기록** | 물건별 임장 메모, 입찰가, 낙찰/패찰 결과 기록 |
 
 ---
 
@@ -19,21 +29,20 @@ npm run dev          # Vite 개발 서버 (http://localhost:5173)
 src/
 ├── App.tsx                   # 라우팅 (Page union type 기반 상태 머신)
 ├── pages/
-│   ├── HomePage.tsx          # 메인 (진단 / 내 집 / 기록 탭)
-│   ├── DiagnosisResultPage   # A~F 등급 결과 + 회수 예상액 + 행동 가이드
-│   ├── ChecklistPage         # 계약 전 체크리스트 (10개 항목)
-│   ├── MyhomeDepositPage     # 내 집 등록 - 보증금 입력
-│   ├── MyhomePeriodPage      # 내 집 등록 - 계약 기간 입력
-│   └── OnboardingPage        # 사용자 유형 선택
-├── store/useAppStore.ts      # Zustand 전역 상태
-├── types/index.ts            # TypeScript 타입 정의
-├── utils/
-│   ├── diagnosis.ts          # 4지표 가중평균 진단 알고리즘
-│   └── grades.ts             # A~F 등급 정의
-└── services/
-    ├── addressSearch.ts      # 주소 검색 (mock)
-    ├── realEstateApi.ts      # 실거래가 조회 (mock)
-    └── mockData.ts           # 시드 데이터
+│   ├── HomePage.tsx          # 탭 셸 (홈/경매/관심/기록) + 탭바
+│   ├── DashboardTab.tsx      # 홈 대시보드 (통계·기일 임박·가격 변동)
+│   ├── AuctionPage.tsx       # 경매 리스트 + 필터/정렬 시트 + 상세 시트
+│   ├── FavoritesTab.tsx      # 관심 물건 목록 + 비교 표
+│   ├── RecordsTab.tsx        # 임장·입찰 기록 목록
+│   └── Diagnosis*.tsx        # (구) 전세 진단 플로우 — 라우트만 유지
+├── components/
+│   └── RecordSheet.tsx       # 임장 메모·입찰 결과 입력 바텀시트
+├── store/
+│   ├── useAuctionStore.ts    # 물건·관심·기록·가격변동 (zustand persist)
+│   └── useAppStore.ts        # (구) 진단 상태
+├── utils/auctionXlsx.ts      # 주간 엑셀 파싱 (exceljs) + 가격 포맷
+├── data/auctionSeed.json     # 앱과 함께 배포되는 시드 물건 데이터
+└── types/index.ts            # AuctionItem, AuctionRecord 등
 ```
 
 ---
@@ -78,16 +87,17 @@ src/
    - 버튼은 다음 행동을 명확하게 안내해야 해요
    - 화면 설명을 반복하거나 모호한 문구 사용 금지
 
-### Homey 브랜드 디자인
+### Homey 브랜드 디자인 — 네오브루탈
 
 | 속성 | 값 |
 |------|------|
-| 브랜드 컬러 | `#1B3D35` (다크 그린) |
-| 보조 배경 | `#E7EFEC` (라이트 그린), `#FAF8F4` (웜 그레이) |
-| 위험 색상 | `#F44336` (빨강), `#FF9800` (주황), `#FFC107` (노랑) |
-| 안전 색상 | `#00B274` (A등급), `#4CAF50` (B등급) |
-| 텍스트 | `#1B3D35` (주요), `#5C6B66` (보조), `#9BA6A2` (비활성) |
-| 테두리 | `#E5E7E3` |
+| 캔버스 | `#FFFBEF` (크림) |
+| 잉크 (텍스트·테두리) | `#111111` |
+| 액션·강조 | `#FFD43B` (옐로), `#B6F09C` (라임) |
+| 경고·긴급 | `#FF6B6B` (빨강 배경 + 검정 글자, AA 대비 통과) |
+| 보조 텍스트 | `#555555`, `#8C8576` |
+| 카드 문법 | 2.5px 검정 테두리 + 4px 오프셋 섀도우 (`.nb`), 누르면 가라앉는 모션 (`.nb-press`) |
+| 위계 원칙 | 두꺼운 테두리+섀도우는 히어로 요소(통계 카드·주요 CTA·활성 칩)에만, 리스트는 플랫 행 |
 
 ### UI 컴포넌트 (TDS Mobile)
 
