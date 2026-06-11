@@ -11,14 +11,10 @@ import {
 	type AuctionPreset,
 } from "./AuctionPage";
 import type { AuctionItem } from "../types";
-import type { Page } from "../App";
 
 interface Props {
-	nav: (p: Page) => void;
 	/** 경매 탭으로 이동하면서 필터 프리셋을 적용해요 */
 	goAuction: (preset?: AuctionPreset) => void;
-	/** 내 집 지키기 화면을 열어요 */
-	openMyhome: () => void;
 }
 
 const QUICK_FILTERS: { label: string; preset: AuctionPreset }[] = [
@@ -29,7 +25,7 @@ const QUICK_FILTERS: { label: string; preset: AuctionPreset }[] = [
 ];
 
 /** 홈 대시보드 — 이번 주에 봐야 할 것들을 모아 보여줘요 */
-export function DashboardTab({ nav, goAuction, openMyhome }: Props) {
+export function DashboardTab({ goAuction }: Props) {
 	const { items, dataDate, favorites, toggleFavorite, prevPrices } =
 		useAuctionStore();
 	const [detail, setDetail] = useState<AuctionItem | null>(null);
@@ -252,22 +248,6 @@ export function DashboardTab({ nav, goAuction, openMyhome }: Props) {
 				)}
 			</Section>
 
-			{/* ── 기타 도구 (전세 시절 기능) ── */}
-			<Section title="기타 도구">
-				<ToolRow
-					icon="🛡️"
-					title="전세 안전 진단"
-					desc="전세 들어가기 전 등기부등본으로 위험도 확인"
-					onClick={() => nav({ type: "diagnosis-search" })}
-				/>
-				<ToolRow
-					icon="🏠"
-					title="내 집 지키기"
-					desc="거주 중인 집의 등기 변동·계약 만료 관리"
-					onClick={openMyhome}
-				/>
-			</Section>
-
 			<div style={{ height: 24 }} />
 
 			<DetailSheet
@@ -399,45 +379,6 @@ function EmptyHint({
 					{actionLabel}
 				</button>
 			)}
-		</div>
-	);
-}
-
-function ToolRow({
-	icon,
-	title,
-	desc,
-	onClick,
-}: {
-	icon: string;
-	title: string;
-	desc: string;
-	onClick: () => void;
-}) {
-	return (
-		<div
-			onClick={onClick}
-			style={{
-				display: "flex",
-				alignItems: "center",
-				gap: 12,
-				padding: "12px 14px",
-				backgroundColor: "#FAF8F4",
-				borderRadius: 10,
-				marginBottom: 8,
-				cursor: "pointer",
-			}}
-		>
-			<span style={{ fontSize: 22, flexShrink: 0 }}>{icon}</span>
-			<div style={{ flex: 1 }}>
-				<div style={{ fontSize: 13, fontWeight: 700, color: "#1B3D35" }}>
-					{title}
-				</div>
-				<div style={{ fontSize: 12, color: "#5C6B66", marginTop: 2 }}>
-					{desc}
-				</div>
-			</div>
-			<span style={{ color: "#9BA6A2" }}>›</span>
 		</div>
 	);
 }

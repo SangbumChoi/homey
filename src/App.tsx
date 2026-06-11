@@ -40,7 +40,7 @@ function App() {
 
 	switch (page.type) {
 		case "home":
-			return <HomePage nav={nav} activeTab={page.tab} />;
+			return <HomePage activeTab={page.tab} />;
 		case "diagnosis-search":
 			return (
 				<DiagnosisSearchPage
