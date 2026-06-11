@@ -24,14 +24,19 @@ export function HomePage({ activeTab }: Props) {
 	return (
 		<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
 			<div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
-				{tab === "home" && <DashboardTab goAuction={goAuction} />}
+				{tab === "home" && (
+					<DashboardTab
+						goAuction={goAuction}
+						goFavorites={() => setTab("favorites")}
+					/>
+				)}
 				{tab === "auction" && (
 					<AuctionTab
 						preset={auctionPreset}
 						onPresetApplied={() => setAuctionPreset(null)}
 					/>
 				)}
-				{tab === "favorites" && <FavoritesTab />}
+				{tab === "favorites" && <FavoritesTab goAuction={() => goAuction()} />}
 				{tab === "history" && <RecordsTab />}
 			</div>
 

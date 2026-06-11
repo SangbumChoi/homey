@@ -12,7 +12,7 @@ import {
 import type { AuctionItem } from "../types";
 
 /** 관심 물건 탭 — 찜한 물건을 모아 보고 나란히 비교해요 */
-export function FavoritesTab() {
+export function FavoritesTab({ goAuction }: { goAuction?: () => void }) {
 	const { items, favorites, toggleFavorite } = useAuctionStore();
 	const [view, setView] = useState<"list" | "compare">("list");
 	const [detail, setDetail] = useState<AuctionItem | null>(null);
@@ -54,6 +54,25 @@ export function FavoritesTab() {
 						<br />
 						여기에 모여요
 					</div>
+					{goAuction && (
+						<button
+							className="touchable"
+							onClick={goAuction}
+							style={{
+								marginTop: 16,
+								padding: "10px 20px",
+								borderRadius: 10,
+								border: "none",
+								backgroundColor: "#1B3D35",
+								color: "#fff",
+								fontSize: 13,
+								fontWeight: 700,
+								cursor: "pointer",
+							}}
+						>
+							물건 보러 가기
+						</button>
+					)}
 				</div>
 			) : (
 				<>

@@ -349,14 +349,23 @@ export function AuctionTab({
 				)}
 			</div>
 
-			{/* ── 필터 칩바 ── */}
+			{/* ── 필터 칩바 + 정렬 (스크롤해도 상단에 고정돼요) ── */}
 			<div
+				style={{
+					position: "sticky",
+					top: 0,
+					zIndex: 10,
+					backgroundColor: "#fff",
+					borderBottom: "1px solid #F0F2EF",
+				}}
+			>
+			<div
+				className="hide-scrollbar"
 				style={{
 					display: "flex",
 					gap: 8,
 					overflowX: "auto",
 					padding: "14px 20px 12px",
-					scrollbarWidth: "none",
 				}}
 			>
 				<FilterChip
@@ -389,7 +398,7 @@ export function AuctionTab({
 			{/* ── 결과 수 + 정렬 ── */}
 			<div
 				style={{
-					padding: "0 20px 4px",
+					padding: "0 20px 10px",
 					display: "flex",
 					justifyContent: "space-between",
 					alignItems: "center",
@@ -421,6 +430,7 @@ export function AuctionTab({
 				>
 					{SORT_OPTIONS.find(([k]) => k === sort)![1]} ▾
 				</button>
+			</div>
 			</div>
 
 			{/* ── 물건 리스트 ── */}
@@ -730,6 +740,7 @@ export function AuctionRow({
 
 	return (
 		<div
+			className="touchable"
 			onClick={onClick}
 			style={{
 				padding: "14px 20px",

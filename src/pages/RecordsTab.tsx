@@ -84,6 +84,7 @@ export function RecordsTab() {
 						return (
 							<div
 								key={key}
+								className="touchable"
 								onClick={() => setEditKey(key)}
 								style={{
 									padding: "14px 20px",
