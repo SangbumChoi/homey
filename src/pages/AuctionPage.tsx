@@ -68,19 +68,31 @@ function buildingName(address: string): string | null {
 	return parts[parts.length - 1].trim();
 }
 
-/** 시/도 접두사·괄호·동호수를 떼어낸 짧은 주소 (전체 주소는 상세에서 보여줘요) */
+/** 시/도 접두사·괄호·동호수를 떼어낸 짧은 주소 — 상세 시트 제목용 */
 function shortAddress(address: string): string {
-	const s = address
-		.replace(/^(서울특별시|경기도)\s*/, "")
-		.replace(/\([^)]*\)/g, "")
-		.trim();
+	const s = fullAddress(address);
 	// "제1층 제106호", "103동 8층802호" 같은 동/층/호 토큰부터 잘라내요
 	const tokens = s.split(/\s+/);
 	const idx = tokens.findIndex((t) => /^제?\d+(동|층|호)/.test(t));
 	return idx > 1 ? tokens.slice(0, idx).join(" ") : s;
 }
 
-/** 리스트 행 제목 — 단지명이 있으면 단지명, 없으면 짧은 주소 */
+/** 시/도 접두사·괄호만 떼고 동/층/호까지 모두 보여주는 주소 — 리스트 제목용 */
+function fullAddress(address: string): string {
+	return address
+		.replace(/^(서울특별시|경기도)\s*/, "")
+		.replace(/\([^)]*\)/g, "")
+		.trim();
+}
+
+/** 리스트 행 제목 — 주소 전체에 단지명(괄호 안)이 따로 있으면 덧붙여요 */
+function rowTitle(item: AuctionItem): string {
+	const name = buildingName(item.address);
+	const addr = fullAddress(item.address);
+	return name && !addr.includes(name) ? `${addr} (${name})` : addr;
+}
+
+/** 상세 시트 제목 — 단지명이 있으면 단지명, 없으면 짧은 주소 */
 function displayName(item: AuctionItem): string {
 	return buildingName(item.address) ?? shortAddress(item.address);
 }
@@ -656,6 +668,7 @@ function AuctionRow({
 	const discounted = item.minRate < 100;
 	const areaText =
 		areaUnit === "pyeong" ? `${item.areaPyeong}평` : `${item.areaM2}㎡`;
+	const perPyeong = formatKRW(Math.round(pricePerPyeong(item)));
 
 	return (
 		<div
@@ -666,7 +679,21 @@ function AuctionRow({
 				cursor: "pointer",
 			}}
 		>
-			{/* 1줄: 가격 + 배지 + D-day */}
+			{/* 1줄: 주소 — 가장 중요한 정보라 전부 보여주고, 길면 줄바꿈해요 */}
+			<div
+				style={{
+					fontSize: 14,
+					fontWeight: 700,
+					color: "#1B3D35",
+					lineHeight: 1.45,
+					marginBottom: 5,
+					wordBreak: "keep-all",
+				}}
+			>
+				{rowTitle(item)}
+			</div>
+
+			{/* 2줄: 최저가 + 할인율 + 지분 경고 */}
 			<div
 				style={{
 					display: "flex",
@@ -680,7 +707,7 @@ function AuctionRow({
 				</span>
 				{discounted && (
 					<span style={{ fontSize: 12, fontWeight: 700, color: "#F44336" }}>
-						{item.minRate}%↓
+						감정가의 {item.minRate}%
 					</span>
 				)}
 				{isShare && (
@@ -697,34 +724,16 @@ function AuctionRow({
 						지분
 					</span>
 				)}
-				<span
-					style={{
-						marginLeft: "auto",
-						fontSize: 12,
-						fontWeight: 700,
-						color: dday.color,
-					}}
-				>
-					{dday.label}
-				</span>
 			</div>
 
-			{/* 2줄: 이름 · 면적 · 유찰 · 법원 */}
-			<div
-				style={{
-					fontSize: 13,
-					color: "#5C6B66",
-					whiteSpace: "nowrap",
-					overflow: "hidden",
-					textOverflow: "ellipsis",
-				}}
-			>
-				<span style={{ color: "#1B3D35", fontWeight: 600 }}>
-					{displayName(item)}
+			{/* 3줄: 면적 · 평당가 · 유찰 · 법원 · 기일 */}
+			<div style={{ fontSize: 12, color: "#5C6B66", lineHeight: 1.5 }}>
+				{areaText} · 평당 {perPyeong} ·{" "}
+				{item.failCount === 0 ? "신건" : `유찰 ${item.failCount}회`} ·{" "}
+				{shortCourt(item.court)} ·{" "}
+				<span style={{ color: dday.color, fontWeight: 600 }}>
+					{dday.label}
 				</span>
-				{" · "}
-				{areaText} · {item.failCount === 0 ? "신건" : `유찰 ${item.failCount}회`}{" "}
-				· {shortCourt(item.court)}
 			</div>
 		</div>
 	);
