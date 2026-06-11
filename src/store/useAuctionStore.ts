@@ -23,6 +23,9 @@ interface AuctionState {
 	records: Record<string, AuctionRecord>;
 	/** 업로드로 최저가가 바뀐 물건의 직전 가격 (key = auctionKey) */
 	prevPrices: Record<string, number>;
+	/** 원격 저장소 새 데이터 확인 시각 (ISO) — 과도한 요청을 막아요 */
+	lastRemoteCheckAt: string | null;
+	markRemoteChecked: () => void;
 	/** 업로드한 파일 데이터를 기존 목록에 병합해요 (같은 사건번호는 새 데이터로 갱신) */
 	importItems: (items: AuctionItem[], dataDate: string | null) => ImportResult;
 	toggleFavorite: (key: string) => void;
@@ -74,6 +77,10 @@ export const useAuctionStore = create<AuctionState>()(
 			favorites: [],
 			records: {},
 			prevPrices: {},
+			lastRemoteCheckAt: null,
+
+			markRemoteChecked: () =>
+				set({ lastRemoteCheckAt: new Date().toISOString() }),
 
 			importItems: (incoming, dataDate) => {
 				const current = get().dataDate;

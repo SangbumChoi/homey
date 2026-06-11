@@ -9,6 +9,7 @@ import {
 	pricePerPyeong,
 } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
+import { fetchRemoteAuctionData } from "../services/remoteAuctionData";
 import type { AuctionItem } from "../types";
 
 /** 대시보드 빠른 필터에서 전달받는 필터 프리셋 */
@@ -229,10 +230,39 @@ export function AuctionTab({
 	/* 업로드 */
 	const fileRef = useRef<HTMLInputElement>(null);
 	const [uploading, setUploading] = useState(false);
+	const [syncing, setSyncing] = useState(false);
 	const [uploadMsg, setUploadMsg] = useState<{
 		text: string;
 		error?: boolean;
 	} | null>(null);
+
+	/* 원격 저장소(homey-data)에서 최신 주간 엑셀을 받아 병합해요 */
+	const handleRemoteSync = async () => {
+		setSyncing(true);
+		setUploadMsg(null);
+		try {
+			const { items: parsed, dataDate: parsedDate } =
+				await fetchRemoteAuctionData();
+			const { added, updated } = importItems(parsed, parsedDate);
+			useAuctionStore.getState().markRemoteChecked();
+			setUploadMsg({
+				text:
+					added + updated > 0
+						? `새 데이터 반영 — 신규 ${added}건, 갱신 ${updated}건이에요`
+						: "이미 최신 데이터예요",
+			});
+		} catch (err) {
+			setUploadMsg({
+				text:
+					err instanceof Error
+						? err.message
+						: "새 데이터를 확인하지 못했어요",
+				error: true,
+			});
+		} finally {
+			setSyncing(false);
+		}
+	};
 
 	const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
@@ -370,7 +400,23 @@ export function AuctionTab({
 							경매 물건
 						</div>
 						<div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
-							{dataDate ? `${dataDate} 기준` : ""} · 전체 {items.length}건
+							{dataDate ? `${dataDate} 기준` : ""} · 전체 {items.length}건 ·{" "}
+							<button
+								onClick={handleRemoteSync}
+								disabled={syncing}
+								style={{
+									border: "none",
+									background: "none",
+									padding: 0,
+									fontSize: 12,
+									fontWeight: 700,
+									color: "#111",
+									textDecoration: "underline",
+									cursor: "pointer",
+								}}
+							>
+								{syncing ? "확인 중…" : "↻ 새 데이터"}
+							</button>
 						</div>
 					</div>
 					<input

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuctionStore } from "../store/useAuctionStore";
+import { fetchRemoteAuctionData } from "../services/remoteAuctionData";
 import { AuctionTab, type AuctionPreset } from "./AuctionPage";
 import { DashboardTab } from "./DashboardTab";
 import { FavoritesTab } from "./FavoritesTab";
@@ -20,6 +22,28 @@ export function HomePage({ activeTab }: Props) {
 		setAuctionPreset(preset ?? null);
 		setTab("auction");
 	};
+
+	/* 앱을 열 때 원격 저장소의 새 주간 엑셀을 확인해요 (6시간에 1번) */
+	useEffect(() => {
+		const { lastRemoteCheckAt, importItems, markRemoteChecked } =
+			useAuctionStore.getState();
+		const sixHours = 6 * 60 * 60 * 1000;
+		if (
+			lastRemoteCheckAt &&
+			Date.now() - new Date(lastRemoteCheckAt).getTime() < sixHours
+		) {
+			return;
+		}
+		fetchRemoteAuctionData()
+			.then(({ items, dataDate }) => {
+				importItems(items, dataDate);
+				markRemoteChecked();
+			})
+			.catch(() => {
+				// 저장소가 아직 없거나 오프라인이면 조용히 넘어가요
+				markRemoteChecked();
+			});
+	}, []);
 
 	return (
 		<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
