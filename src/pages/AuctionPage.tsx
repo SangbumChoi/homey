@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Button, TextButton } from "@toss/tds-mobile";
+import { BottomSheet, Button, TextButton } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import { useAuctionStore } from "../store/useAuctionStore";
 import {
@@ -9,6 +9,7 @@ import {
 } from "../utils/auctionXlsx";
 import type { AuctionItem } from "../types";
 
+/* ────────────────── 정렬 ────────────────── */
 type SortKey =
 	| "saleDate"
 	| "priceAsc"
@@ -26,9 +27,62 @@ const SORT_OPTIONS: [SortKey, string][] = [
 	["failDesc", "유찰 많은순"],
 ];
 
+/* ────────────────── 필터 프리셋 ────────────────── */
+/** [최소, 최대] 억원 단위 (null = 제한 없음) */
+const PRICE_PRESETS: [string, number | null, number | null][] = [
+	["전체", null, null],
+	["6억 이하", null, 6],
+	["6~9억", 6, 9],
+	["9~12억", 9, 12],
+	["12억 이상", 12, null],
+];
+
+/** [최소, 최대] 평 단위 (null = 제한 없음) */
+const AREA_PRESETS: [string, number | null, number | null][] = [
+	["전체", null, null],
+	["25평 이하", null, 25],
+	["25~35평", 25, 35],
+	["35평 이상", 35, null],
+];
+
+type SheetKind =
+	| "region"
+	| "court"
+	| "price"
+	| "area"
+	| "etc"
+	| "sort"
+	| null;
+
+/* ────────────────── 헬퍼 ────────────────── */
 /** "서울동부지방법원" → "동부", "성남지원" → "성남" */
 function shortCourt(court: string): string {
 	return court.replace("서울", "").replace("지방법원", "").replace("지원", "");
+}
+
+/** "(중곡동,에스케이아파트)" → "에스케이아파트" */
+function buildingName(address: string): string | null {
+	const m = address.match(/\(([^)]+)\)/);
+	if (!m) return null;
+	const parts = m[1].split(",");
+	return parts[parts.length - 1].trim();
+}
+
+/** 시/도 접두사·괄호·동호수를 떼어낸 짧은 주소 (전체 주소는 상세에서 보여줘요) */
+function shortAddress(address: string): string {
+	const s = address
+		.replace(/^(서울특별시|경기도)\s*/, "")
+		.replace(/\([^)]*\)/g, "")
+		.trim();
+	// "제1층 제106호", "103동 8층802호" 같은 동/층/호 토큰부터 잘라내요
+	const tokens = s.split(/\s+/);
+	const idx = tokens.findIndex((t) => /^제?\d+(동|층|호)/.test(t));
+	return idx > 1 ? tokens.slice(0, idx).join(" ") : s;
+}
+
+/** 리스트 행 제목 — 단지명이 있으면 단지명, 없으면 짧은 주소 */
+function displayName(item: AuctionItem): string {
+	return buildingName(item.address) ?? shortAddress(item.address);
 }
 
 function todayStr(): string {
@@ -47,27 +101,35 @@ function dDayLabel(saleDate: string): { label: string; color: string } {
 	return { label: `D-${diff}`, color: "#1B3D35" };
 }
 
+/* ────────────────── 메인 ────────────────── */
 export function AuctionTab() {
 	const { items, dataDate, lastUploadAt, importItems, reset } =
 		useAuctionStore();
 
-	/* ── 필터 상태 ── */
+	/* 필터 상태 */
 	const [region, setRegion] = useState<string | null>(null);
 	const [selectedCourts, setSelectedCourts] = useState<string[]>([]);
-	const [priceMin, setPriceMin] = useState(""); // 억 단위
-	const [priceMax, setPriceMax] = useState("");
+	const [priceRange, setPriceRange] = useState<
+		[number | null, number | null]
+	>([null, null]);
+	const [areaRange, setAreaRange] = useState<[number | null, number | null]>([
+		null,
+		null,
+	]);
 	const [areaUnit, setAreaUnit] = useState<"pyeong" | "m2">("pyeong");
-	const [areaMin, setAreaMin] = useState("");
-	const [areaMax, setAreaMax] = useState("");
 	const [failFilter, setFailFilter] = useState<"all" | "new" | "failed">(
 		"all",
 	);
 	const [excludeShare, setExcludeShare] = useState(false);
 	const [includePast, setIncludePast] = useState(false);
 	const [sort, setSort] = useState<SortKey>("saleDate");
-	const [filterOpen, setFilterOpen] = useState(true);
 
-	/* ── 업로드 ── */
+	/* 시트 상태 */
+	const [sheet, setSheet] = useState<SheetKind>(null);
+	const [detail, setDetail] = useState<AuctionItem | null>(null);
+	const closeSheet = () => setSheet(null);
+
+	/* 업로드 */
 	const fileRef = useRef<HTMLInputElement>(null);
 	const [uploading, setUploading] = useState(false);
 	const [uploadMsg, setUploadMsg] = useState<{
@@ -99,7 +161,7 @@ export function AuctionTab() {
 		}
 	};
 
-	/* ── 파생 데이터 ── */
+	/* 파생 데이터 */
 	const regions = useMemo(
 		() => [...new Set(items.map((i) => i.region))].sort(),
 		[items],
@@ -111,21 +173,17 @@ export function AuctionTab() {
 
 	const filtered = useMemo(() => {
 		const today = todayStr();
-		const min = parseFloat(priceMin) * 100_000_000;
-		const max = parseFloat(priceMax) * 100_000_000;
-		const aMin = parseFloat(areaMin);
-		const aMax = parseFloat(areaMax);
-		const area = (i: AuctionItem) =>
-			areaUnit === "pyeong" ? i.areaPyeong : i.areaM2;
+		const [pMin, pMax] = priceRange;
+		const [aMin, aMax] = areaRange;
 
 		const result = items.filter((i) => {
 			if (region && i.region !== region) return false;
 			if (selectedCourts.length > 0 && !selectedCourts.includes(i.court))
 				return false;
-			if (!isNaN(min) && i.minPrice < min) return false;
-			if (!isNaN(max) && i.minPrice > max) return false;
-			if (!isNaN(aMin) && area(i) < aMin) return false;
-			if (!isNaN(aMax) && area(i) > aMax) return false;
+			if (pMin !== null && i.minPrice < pMin * 100_000_000) return false;
+			if (pMax !== null && i.minPrice > pMax * 100_000_000) return false;
+			if (aMin !== null && i.areaPyeong < aMin) return false;
+			if (aMax !== null && i.areaPyeong > aMax) return false;
 			if (failFilter === "new" && i.failCount !== 0) return false;
 			if (failFilter === "failed" && i.failCount === 0) return false;
 			if (excludeShare && i.note?.includes("지분")) return false;
@@ -146,47 +204,56 @@ export function AuctionTab() {
 		items,
 		region,
 		selectedCourts,
-		priceMin,
-		priceMax,
-		areaUnit,
-		areaMin,
-		areaMax,
+		priceRange,
+		areaRange,
 		failFilter,
 		excludeShare,
 		includePast,
 		sort,
 	]);
 
-	const activeFilterCount =
-		(region ? 1 : 0) +
-		(selectedCourts.length > 0 ? 1 : 0) +
-		(priceMin || priceMax ? 1 : 0) +
-		(areaMin || areaMax ? 1 : 0) +
+	/* 칩 라벨 — 선택된 값을 그대로 보여줘요 */
+	const rangeLabel = (
+		[min, max]: [number | null, number | null],
+		unit: string,
+	) => {
+		if (min === null && max === null) return null;
+		if (min === null) return `${max}${unit} 이하`;
+		if (max === null) return `${min}${unit} 이상`;
+		return `${min}~${max}${unit}`;
+	};
+	const courtLabel =
+		selectedCourts.length === 0
+			? null
+			: selectedCourts.length === 1
+				? shortCourt(selectedCourts[0])
+				: `${shortCourt(selectedCourts[0])} 외 ${selectedCourts.length - 1}`;
+	const etcCount =
 		(failFilter !== "all" ? 1 : 0) +
 		(excludeShare ? 1 : 0) +
 		(includePast ? 1 : 0);
 
+	const activeFilterCount =
+		(region ? 1 : 0) +
+		(selectedCourts.length > 0 ? 1 : 0) +
+		(priceRange[0] !== null || priceRange[1] !== null ? 1 : 0) +
+		(areaRange[0] !== null || areaRange[1] !== null ? 1 : 0) +
+		etcCount;
+
 	const clearFilters = () => {
 		setRegion(null);
 		setSelectedCourts([]);
-		setPriceMin("");
-		setPriceMax("");
-		setAreaMin("");
-		setAreaMax("");
+		setPriceRange([null, null]);
+		setAreaRange([null, null]);
 		setFailFilter("all");
 		setExcludeShare(false);
 		setIncludePast(false);
 	};
 
-	const toggleCourt = (c: string) =>
-		setSelectedCourts((prev) =>
-			prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c],
-		);
-
 	return (
 		<>
 			{/* ── 헤더 ── */}
-			<div style={{ padding: "20px 20px 12px" }}>
+			<div style={{ padding: "20px 20px 0" }}>
 				<div
 					style={{
 						display: "flex",
@@ -200,8 +267,6 @@ export function AuctionTab() {
 						</div>
 						<div style={{ fontSize: 12, color: "#5C6B66", marginTop: 2 }}>
 							{dataDate ? `${dataDate} 기준` : ""} · 전체 {items.length}건
-							{lastUploadAt &&
-								` · ${new Date(lastUploadAt).toLocaleDateString("ko-KR")} 업로드`}
 						</div>
 					</div>
 					<input
@@ -214,6 +279,7 @@ export function AuctionTab() {
 					<Button
 						size="small"
 						color="dark"
+						variant="weak"
 						loading={uploading}
 						onClick={() => fileRef.current?.click()}
 					>
@@ -238,245 +304,87 @@ export function AuctionTab() {
 				)}
 			</div>
 
-			{/* ── 컨트롤 패널 ── */}
-			<div style={{ padding: "0 20px 12px" }}>
-				<div
-					style={{
-						backgroundColor: "#fff",
-						borderRadius: 14,
-						border: "1px solid #E5E7E3",
-						overflow: "hidden",
-					}}
-				>
-					<div
-						onClick={() => setFilterOpen(!filterOpen)}
-						style={{
-							display: "flex",
-							justifyContent: "space-between",
-							alignItems: "center",
-							padding: "12px 16px",
-							cursor: "pointer",
-						}}
-					>
-						<div style={{ fontSize: 14, fontWeight: 700, color: "#1B3D35" }}>
-							🎛️ 필터
-							{activeFilterCount > 0 && (
-								<span
-									style={{
-										marginLeft: 6,
-										fontSize: 11,
-										fontWeight: 700,
-										color: "#fff",
-										backgroundColor: "#1B3D35",
-										borderRadius: 9,
-										padding: "1px 7px",
-									}}
-								>
-									{activeFilterCount}
-								</span>
-							)}
-						</div>
-						<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-							{activeFilterCount > 0 && (
-								<TextButton
-									size="xsmall"
-									color={colors.grey600}
-									onClick={(e: React.MouseEvent) => {
-										e.stopPropagation();
-										clearFilters();
-									}}
-								>
-									초기화
-								</TextButton>
-							)}
-							<span style={{ color: "#9BA6A2", fontSize: 12 }}>
-								{filterOpen ? "▲" : "▼"}
-							</span>
-						</div>
-					</div>
-
-					{filterOpen && (
-						<div
-							style={{
-								padding: "0 16px 16px",
-								display: "flex",
-								flexDirection: "column",
-								gap: 14,
-							}}
-						>
-							{/* 지역 */}
-							<FilterSection label="지역">
-								<Chip
-									active={region === null}
-									label="전체"
-									onClick={() => setRegion(null)}
-								/>
-								{regions.map((r) => (
-									<Chip
-										key={r}
-										active={region === r}
-										label={r}
-										onClick={() => setRegion(region === r ? null : r)}
-									/>
-								))}
-							</FilterSection>
-
-							{/* 법원 */}
-							<FilterSection label="법원 (복수 선택)">
-								<Chip
-									active={selectedCourts.length === 0}
-									label="전체"
-									onClick={() => setSelectedCourts([])}
-								/>
-								{courts.map((c) => (
-									<Chip
-										key={c}
-										active={selectedCourts.includes(c)}
-										label={shortCourt(c)}
-										onClick={() => toggleCourt(c)}
-									/>
-								))}
-							</FilterSection>
-
-							{/* 최저가 */}
-							<FilterSection label="최저가 (억원)">
-								<RangeInput
-									minValue={priceMin}
-									maxValue={priceMax}
-									onMin={setPriceMin}
-									onMax={setPriceMax}
-									placeholder={["최소", "최대"]}
-									unit="억"
-								/>
-							</FilterSection>
-
-							{/* 면적 */}
-							<FilterSection
-								label="면적"
-								right={
-									<div style={{ display: "flex", gap: 4 }}>
-										{(
-											[
-												["pyeong", "평"],
-												["m2", "㎡"],
-											] as const
-										).map(([u, label]) => (
-											<button
-												key={u}
-												onClick={() => setAreaUnit(u)}
-												style={{
-													padding: "3px 10px",
-													borderRadius: 6,
-													border: "none",
-													fontSize: 11,
-													fontWeight: areaUnit === u ? 700 : 400,
-													backgroundColor:
-														areaUnit === u ? "#1B3D35" : "#F0F2EF",
-													color: areaUnit === u ? "#fff" : "#5C6B66",
-													cursor: "pointer",
-												}}
-											>
-												{label}
-											</button>
-										))}
-									</div>
-								}
-							>
-								<RangeInput
-									minValue={areaMin}
-									maxValue={areaMax}
-									onMin={setAreaMin}
-									onMax={setAreaMax}
-									placeholder={["최소", "최대"]}
-									unit={areaUnit === "pyeong" ? "평" : "㎡"}
-								/>
-							</FilterSection>
-
-							{/* 유찰 / 기타 */}
-							<FilterSection label="유찰 · 기타">
-								<Chip
-									active={failFilter === "all"}
-									label="전체"
-									onClick={() => setFailFilter("all")}
-								/>
-								<Chip
-									active={failFilter === "new"}
-									label="신건만"
-									onClick={() =>
-										setFailFilter(failFilter === "new" ? "all" : "new")
-									}
-								/>
-								<Chip
-									active={failFilter === "failed"}
-									label="유찰 1회 이상"
-									onClick={() =>
-										setFailFilter(failFilter === "failed" ? "all" : "failed")
-									}
-								/>
-								<Chip
-									active={excludeShare}
-									label="지분매각 제외"
-									onClick={() => setExcludeShare(!excludeShare)}
-								/>
-								<Chip
-									active={includePast}
-									label="지난 기일 포함"
-									onClick={() => setIncludePast(!includePast)}
-								/>
-							</FilterSection>
-						</div>
-					)}
-				</div>
+			{/* ── 필터 칩바 ── */}
+			<div
+				style={{
+					display: "flex",
+					gap: 8,
+					overflowX: "auto",
+					padding: "14px 20px 12px",
+					scrollbarWidth: "none",
+				}}
+			>
+				<FilterChip
+					label={region ?? "지역"}
+					active={!!region}
+					onClick={() => setSheet("region")}
+				/>
+				<FilterChip
+					label={courtLabel ?? "법원"}
+					active={!!courtLabel}
+					onClick={() => setSheet("court")}
+				/>
+				<FilterChip
+					label={rangeLabel(priceRange, "억") ?? "가격"}
+					active={priceRange[0] !== null || priceRange[1] !== null}
+					onClick={() => setSheet("price")}
+				/>
+				<FilterChip
+					label={rangeLabel(areaRange, "평") ?? "면적"}
+					active={areaRange[0] !== null || areaRange[1] !== null}
+					onClick={() => setSheet("area")}
+				/>
+				<FilterChip
+					label={etcCount > 0 ? `조건 ${etcCount}` : "조건"}
+					active={etcCount > 0}
+					onClick={() => setSheet("etc")}
+				/>
 			</div>
 
 			{/* ── 결과 수 + 정렬 ── */}
 			<div
 				style={{
-					padding: "0 20px 8px",
+					padding: "0 20px 4px",
 					display: "flex",
 					justifyContent: "space-between",
 					alignItems: "center",
 				}}
 			>
 				<div style={{ fontSize: 13, color: "#5C6B66" }}>
-					<strong style={{ color: "#1B3D35" }}>{filtered.length}건</strong>의
-					물건이 있어요
+					<strong style={{ color: "#1B3D35" }}>{filtered.length}건</strong>
+					{activeFilterCount > 0 && (
+						<TextButton
+							size="xsmall"
+							color={colors.grey500}
+							onClick={clearFilters}
+							style={{ marginLeft: 8 }}
+						>
+							필터 초기화
+						</TextButton>
+					)}
 				</div>
-				<select
-					value={sort}
-					onChange={(e) => setSort(e.target.value as SortKey)}
+				<button
+					onClick={() => setSheet("sort")}
 					style={{
-						border: "1px solid #E5E7E3",
-						borderRadius: 8,
-						padding: "6px 8px",
+						border: "none",
+						background: "none",
 						fontSize: 12,
-						color: "#1B3D35",
-						backgroundColor: "#fff",
-						outline: "none",
+						color: "#5C6B66",
+						cursor: "pointer",
+						padding: "4px 0",
 					}}
 				>
-					{SORT_OPTIONS.map(([key, label]) => (
-						<option key={key} value={key}>
-							{label}
-						</option>
-					))}
-				</select>
+					{SORT_OPTIONS.find(([k]) => k === sort)![1]} ▾
+				</button>
 			</div>
 
 			{/* ── 물건 리스트 ── */}
-			<div
-				style={{
-					padding: "0 20px 24px",
-					display: "flex",
-					flexDirection: "column",
-					gap: 10,
-				}}
-			>
+			<div style={{ paddingBottom: 24 }}>
 				{filtered.length === 0 ? (
 					<div
 						style={{
 							textAlign: "center",
-							padding: "48px 24px",
+							padding: "56px 24px",
 							color: "#9BA6A2",
 						}}
 					>
@@ -490,22 +398,24 @@ export function AuctionTab() {
 					</div>
 				) : (
 					filtered.map((item) => (
-						<AuctionCard
+						<AuctionRow
 							key={`${item.caseNo}|${item.itemNo}`}
 							item={item}
 							areaUnit={areaUnit}
+							onClick={() => setDetail(item)}
 						/>
 					))
 				)}
 
-				{/* 데이터 초기화 */}
 				{lastUploadAt && (
-					<div style={{ textAlign: "center", marginTop: 8 }}>
+					<div style={{ textAlign: "center", marginTop: 16 }}>
 						<TextButton
 							size="xsmall"
 							color={colors.grey500}
 							onClick={() => {
-								if (confirm("업로드한 데이터를 지우고 기본 데이터로 되돌릴까요?"))
+								if (
+									confirm("업로드한 데이터를 지우고 기본 데이터로 되돌릴까요?")
+								)
 									reset();
 							}}
 						>
@@ -514,317 +424,582 @@ export function AuctionTab() {
 					</div>
 				)}
 			</div>
+
+			{/* ── 지역 시트 ── */}
+			<BottomSheet
+				open={sheet === "region"}
+				onClose={closeSheet}
+				header={<BottomSheet.Header>지역</BottomSheet.Header>}
+			>
+				<SheetOption
+					label="전체"
+					selected={region === null}
+					onClick={() => {
+						setRegion(null);
+						closeSheet();
+					}}
+				/>
+				{regions.map((r) => (
+					<SheetOption
+						key={r}
+						label={r}
+						selected={region === r}
+						onClick={() => {
+							setRegion(r);
+							closeSheet();
+						}}
+					/>
+				))}
+			</BottomSheet>
+
+			{/* ── 법원 시트 (복수 선택) ── */}
+			<BottomSheet
+				open={sheet === "court"}
+				onClose={closeSheet}
+				header={<BottomSheet.Header>법원</BottomSheet.Header>}
+				headerDescription={
+					<BottomSheet.HeaderDescription>
+						여러 법원을 함께 선택할 수 있어요
+					</BottomSheet.HeaderDescription>
+				}
+				cta={<BottomSheet.CTA onClick={closeSheet}>확인</BottomSheet.CTA>}
+			>
+				<SheetOption
+					label="전체"
+					selected={selectedCourts.length === 0}
+					onClick={() => setSelectedCourts([])}
+				/>
+				{courts.map((c) => (
+					<SheetOption
+						key={c}
+						label={c}
+						selected={selectedCourts.includes(c)}
+						onClick={() =>
+							setSelectedCourts((prev) =>
+								prev.includes(c)
+									? prev.filter((x) => x !== c)
+									: [...prev, c],
+							)
+						}
+					/>
+				))}
+			</BottomSheet>
+
+			{/* ── 가격 시트 ── */}
+			<BottomSheet
+				open={sheet === "price"}
+				onClose={closeSheet}
+				header={<BottomSheet.Header>최저가</BottomSheet.Header>}
+			>
+				{PRICE_PRESETS.map(([label, min, max]) => (
+					<SheetOption
+						key={label}
+						label={label}
+						selected={priceRange[0] === min && priceRange[1] === max}
+						onClick={() => {
+							setPriceRange([min, max]);
+							closeSheet();
+						}}
+					/>
+				))}
+			</BottomSheet>
+
+			{/* ── 면적 시트 ── */}
+			<BottomSheet
+				open={sheet === "area"}
+				onClose={closeSheet}
+				header={<BottomSheet.Header>면적</BottomSheet.Header>}
+			>
+				{AREA_PRESETS.map(([label, min, max]) => (
+					<SheetOption
+						key={label}
+						label={label}
+						selected={areaRange[0] === min && areaRange[1] === max}
+						onClick={() => {
+							setAreaRange([min, max]);
+							closeSheet();
+						}}
+					/>
+				))}
+				<div
+					style={{
+						display: "flex",
+						justifyContent: "space-between",
+						alignItems: "center",
+						padding: "14px 24px",
+						borderTop: "1px solid #F0F2EF",
+					}}
+				>
+					<span style={{ fontSize: 15, color: "#1B3D35" }}>표시 단위</span>
+					<div style={{ display: "flex", gap: 4 }}>
+						{(
+							[
+								["pyeong", "평"],
+								["m2", "㎡"],
+							] as const
+						).map(([u, label]) => (
+							<button
+								key={u}
+								onClick={() => setAreaUnit(u)}
+								style={{
+									padding: "5px 14px",
+									borderRadius: 8,
+									border: "none",
+									fontSize: 13,
+									fontWeight: areaUnit === u ? 700 : 400,
+									backgroundColor: areaUnit === u ? "#1B3D35" : "#F0F2EF",
+									color: areaUnit === u ? "#fff" : "#5C6B66",
+									cursor: "pointer",
+								}}
+							>
+								{label}
+							</button>
+						))}
+					</div>
+				</div>
+			</BottomSheet>
+
+			{/* ── 조건 시트 ── */}
+			<BottomSheet
+				open={sheet === "etc"}
+				onClose={closeSheet}
+				header={<BottomSheet.Header>조건</BottomSheet.Header>}
+				cta={<BottomSheet.CTA onClick={closeSheet}>확인</BottomSheet.CTA>}
+			>
+				<div
+					style={{
+						padding: "4px 24px 10px",
+						fontSize: 12,
+						fontWeight: 700,
+						color: "#9BA6A2",
+					}}
+				>
+					유찰
+				</div>
+				{(
+					[
+						["all", "전체"],
+						["new", "신건만"],
+						["failed", "유찰 1회 이상"],
+					] as const
+				).map(([key, label]) => (
+					<SheetOption
+						key={key}
+						label={label}
+						selected={failFilter === key}
+						onClick={() => setFailFilter(key)}
+					/>
+				))}
+				<div
+					style={{
+						padding: "14px 24px 10px",
+						fontSize: 12,
+						fontWeight: 700,
+						color: "#9BA6A2",
+						borderTop: "1px solid #F0F2EF",
+						marginTop: 8,
+					}}
+				>
+					기타
+				</div>
+				<SheetToggle
+					label="지분매각 제외"
+					description="일부 지분만 매각하는 물건을 빼고 봐요"
+					on={excludeShare}
+					onToggle={() => setExcludeShare(!excludeShare)}
+				/>
+				<SheetToggle
+					label="지난 기일 포함"
+					description="매각기일이 지난 물건도 함께 봐요"
+					on={includePast}
+					onToggle={() => setIncludePast(!includePast)}
+				/>
+			</BottomSheet>
+
+			{/* ── 정렬 시트 ── */}
+			<BottomSheet
+				open={sheet === "sort"}
+				onClose={closeSheet}
+				header={<BottomSheet.Header>정렬</BottomSheet.Header>}
+			>
+				{SORT_OPTIONS.map(([key, label]) => (
+					<SheetOption
+						key={key}
+						label={label}
+						selected={sort === key}
+						onClick={() => {
+							setSort(key);
+							closeSheet();
+						}}
+					/>
+				))}
+			</BottomSheet>
+
+			{/* ── 상세 시트 ── */}
+			<DetailSheet item={detail} onClose={() => setDetail(null)} />
 		</>
 	);
 }
 
-/* ────────────────── 물건 카드 ────────────────── */
-function AuctionCard({
+/* ────────────────── 리스트 행 ────────────────── */
+function AuctionRow({
 	item,
 	areaUnit,
+	onClick,
 }: {
 	item: AuctionItem;
 	areaUnit: "pyeong" | "m2";
+	onClick: () => void;
 }) {
-	const [noteOpen, setNoteOpen] = useState(false);
 	const dday = dDayLabel(item.saleDate);
 	const isShare = item.note?.includes("지분") ?? false;
-	const perPyeong = pricePerPyeong(item);
 	const discounted = item.minRate < 100;
+	const areaText =
+		areaUnit === "pyeong" ? `${item.areaPyeong}평` : `${item.areaM2}㎡`;
 
 	return (
 		<div
+			onClick={onClick}
 			style={{
-				backgroundColor: "#fff",
-				borderRadius: 14,
-				border: "1px solid #E5E7E3",
-				padding: 14,
+				padding: "14px 20px",
+				borderBottom: "1px solid #F0F2EF",
+				cursor: "pointer",
 			}}
 		>
-			{/* 배지 행 */}
+			{/* 1줄: 가격 + 배지 + D-day */}
 			<div
 				style={{
 					display: "flex",
 					alignItems: "center",
 					gap: 6,
-					marginBottom: 8,
-					flexWrap: "wrap",
+					marginBottom: 4,
 				}}
 			>
-				<Badge bg="#E7EFEC" color="#1B3D35">
-					{shortCourt(item.court)}법원
-				</Badge>
-				{item.failCount === 0 ? (
-					<Badge bg="#F0FFF4" color="#00B274">
-						신건
-					</Badge>
-				) : (
-					<Badge bg="#FFFBEB" color="#E65100">
-						유찰 {item.failCount}회
-					</Badge>
+				<span style={{ fontSize: 17, fontWeight: 800, color: "#1B3D35" }}>
+					{formatKRW(item.minPrice)}
+				</span>
+				{discounted && (
+					<span style={{ fontSize: 12, fontWeight: 700, color: "#F44336" }}>
+						{item.minRate}%↓
+					</span>
 				)}
 				{isShare && (
-					<Badge bg="#FFF5F5" color="#F44336">
-						지분매각
-					</Badge>
+					<span
+						style={{
+							fontSize: 10,
+							fontWeight: 700,
+							color: "#F44336",
+							backgroundColor: "#FFF5F5",
+							borderRadius: 4,
+							padding: "1px 5px",
+						}}
+					>
+						지분
+					</span>
 				)}
 				<span
 					style={{
 						marginLeft: "auto",
 						fontSize: 12,
-						fontWeight: 800,
+						fontWeight: 700,
 						color: dday.color,
 					}}
 				>
-					{item.saleDate.replace(/-/g, ".")} ({dday.label})
+					{dday.label}
 				</span>
 			</div>
 
-			{/* 주소 */}
+			{/* 2줄: 이름 · 면적 · 유찰 · 법원 */}
 			<div
 				style={{
-					fontSize: 14,
-					fontWeight: 700,
-					color: "#1B3D35",
-					lineHeight: 1.4,
-					marginBottom: 8,
+					fontSize: 13,
+					color: "#5C6B66",
+					whiteSpace: "nowrap",
+					overflow: "hidden",
+					textOverflow: "ellipsis",
 				}}
 			>
-				{item.address}
+				<span style={{ color: "#1B3D35", fontWeight: 600 }}>
+					{displayName(item)}
+				</span>
+				{" · "}
+				{areaText} · {item.failCount === 0 ? "신건" : `유찰 ${item.failCount}회`}{" "}
+				· {shortCourt(item.court)}
 			</div>
+		</div>
+	);
+}
 
-			{/* 가격 */}
-			<div
-				style={{
-					display: "flex",
-					alignItems: "baseline",
-					gap: 8,
-					marginBottom: 8,
-				}}
-			>
-				<span style={{ fontSize: 18, fontWeight: 800, color: "#1B3D35" }}>
-					{formatKRW(item.minPrice)}
-				</span>
-				<span
-					style={{
-						fontSize: 12,
-						fontWeight: 700,
-						color: discounted ? "#F44336" : "#9BA6A2",
-					}}
-				>
-					감정가의 {item.minRate}%
-				</span>
-				{discounted && (
-					<span
+/* ────────────────── 상세 시트 ────────────────── */
+function DetailSheet({
+	item,
+	onClose,
+}: {
+	item: AuctionItem | null;
+	onClose: () => void;
+}) {
+	const dday = item ? dDayLabel(item.saleDate) : null;
+	const isShare = item?.note?.includes("지분") ?? false;
+
+	return (
+		<BottomSheet
+			open={!!item}
+			onClose={onClose}
+			header={
+				<BottomSheet.Header>
+					{item ? displayName(item) : ""}
+				</BottomSheet.Header>
+			}
+			cta={<BottomSheet.CTA onClick={onClose}>확인</BottomSheet.CTA>}
+		>
+			{item && (
+				<div style={{ padding: "0 24px 8px" }}>
+					{/* 주소 전문 */}
+					<div
 						style={{
-							fontSize: 12,
-							color: "#9BA6A2",
-							textDecoration: "line-through",
+							fontSize: 13,
+							color: "#5C6B66",
+							lineHeight: 1.5,
+							marginBottom: 14,
 						}}
 					>
-						{formatKRW(item.appraisal)}
-					</span>
-				)}
-			</div>
+						{item.address}
+					</div>
 
-			{/* 면적/평당가 */}
-			<div
-				style={{
-					display: "flex",
-					gap: 12,
-					fontSize: 12,
-					color: "#5C6B66",
-					flexWrap: "wrap",
-				}}
-			>
-				<span>
-					{areaUnit === "pyeong"
-						? `${item.areaPyeong}평 (${item.areaM2}㎡)`
-						: `${item.areaM2}㎡ (${item.areaPyeong}평)`}
-				</span>
-				<span>평당 {formatKRW(Math.round(perPyeong))}</span>
-				<span style={{ color: "#9BA6A2" }}>
-					{item.caseNo.replace(item.court, "").trim()}
-					{item.itemNo !== "1" && ` (물건 ${item.itemNo})`}
-				</span>
-			</div>
+					{/* 가격 강조 */}
+					<div
+						style={{
+							display: "flex",
+							alignItems: "baseline",
+							gap: 8,
+							marginBottom: 14,
+						}}
+					>
+						<span style={{ fontSize: 24, fontWeight: 800, color: "#1B3D35" }}>
+							{formatKRW(item.minPrice)}
+						</span>
+						<span
+							style={{
+								fontSize: 13,
+								fontWeight: 700,
+								color: item.minRate < 100 ? "#F44336" : "#9BA6A2",
+							}}
+						>
+							감정가의 {item.minRate}%
+						</span>
+					</div>
 
-			{/* 비고 */}
-			{item.note && (
-				<div
-					onClick={() => setNoteOpen(!noteOpen)}
-					style={{
-						marginTop: 10,
-						padding: "8px 10px",
-						backgroundColor: isShare ? "#FFF5F5" : "#FAF8F4",
-						borderRadius: 8,
-						fontSize: 11,
-						color: isShare ? "#C62828" : "#5C6B66",
-						lineHeight: 1.5,
-						cursor: "pointer",
-						...(noteOpen
-							? {}
-							: {
-									overflow: "hidden",
-									textOverflow: "ellipsis",
-									whiteSpace: "nowrap" as const,
-								}),
-					}}
-				>
-					📌 {item.note}
+					{/* 상세 표 */}
+					<div
+						style={{
+							backgroundColor: "#FAF8F4",
+							borderRadius: 12,
+							padding: "4px 14px",
+							marginBottom: 12,
+						}}
+					>
+						<DetailRow label="감정가" value={formatKRW(item.appraisal)} />
+						<DetailRow
+							label="평당가"
+							value={`${formatKRW(Math.round(pricePerPyeong(item)))} / 평`}
+						/>
+						<DetailRow
+							label="면적"
+							value={`${item.areaPyeong}평 (${item.areaM2}㎡)`}
+						/>
+						<DetailRow
+							label="매각기일"
+							value={`${item.saleDate.replace(/-/g, ".")} (${dday!.label})`}
+							valueColor={dday!.color}
+						/>
+						<DetailRow
+							label="유찰"
+							value={item.failCount === 0 ? "신건" : `${item.failCount}회`}
+						/>
+						<DetailRow label="법원" value={item.court} />
+						<DetailRow
+							label="사건번호"
+							value={item.caseNo.replace(item.court, "").trim()}
+						/>
+						{item.itemNo !== "1" && (
+							<DetailRow label="물건번호" value={item.itemNo} />
+						)}
+					</div>
+
+					{/* 비고 */}
+					{item.note && (
+						<div
+							style={{
+								padding: "10px 12px",
+								backgroundColor: isShare ? "#FFF5F5" : "#F8FAFF",
+								borderRadius: 10,
+								fontSize: 12,
+								color: isShare ? "#C62828" : "#5C6B66",
+								lineHeight: 1.6,
+							}}
+						>
+							📌 {item.note}
+						</div>
+					)}
 				</div>
 			)}
+		</BottomSheet>
+	);
+}
+
+function DetailRow({
+	label,
+	value,
+	valueColor,
+}: {
+	label: string;
+	value: string;
+	valueColor?: string;
+}) {
+	return (
+		<div
+			style={{
+				display: "flex",
+				justifyContent: "space-between",
+				gap: 12,
+				padding: "9px 0",
+				fontSize: 13,
+			}}
+		>
+			<span style={{ color: "#9BA6A2", flexShrink: 0 }}>{label}</span>
+			<span
+				style={{
+					color: valueColor ?? "#1B3D35",
+					fontWeight: 600,
+					textAlign: "right",
+				}}
+			>
+				{value}
+			</span>
 		</div>
 	);
 }
 
 /* ────────────────── 공통 소품 ────────────────── */
-function FilterSection({
+function FilterChip({
 	label,
-	right,
-	children,
-}: {
-	label: string;
-	right?: React.ReactNode;
-	children: React.ReactNode;
-}) {
-	return (
-		<div>
-			<div
-				style={{
-					display: "flex",
-					justifyContent: "space-between",
-					alignItems: "center",
-					marginBottom: 6,
-				}}
-			>
-				<div style={{ fontSize: 12, fontWeight: 700, color: "#5C6B66" }}>
-					{label}
-				</div>
-				{right}
-			</div>
-			<div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-				{children}
-			</div>
-		</div>
-	);
-}
-
-function Badge({
-	bg,
-	color,
-	children,
-}: {
-	bg: string;
-	color: string;
-	children: React.ReactNode;
-}) {
-	return (
-		<span
-			style={{
-				padding: "2px 8px",
-				borderRadius: 6,
-				fontSize: 11,
-				fontWeight: 700,
-				backgroundColor: bg,
-				color,
-				whiteSpace: "nowrap",
-			}}
-		>
-			{children}
-		</span>
-	);
-}
-
-function Chip({
 	active,
-	label,
 	onClick,
 }: {
-	active: boolean;
 	label: string;
+	active: boolean;
 	onClick: () => void;
 }) {
 	return (
 		<button
 			onClick={onClick}
 			style={{
-				padding: "7px 12px",
+				padding: "8px 12px",
 				borderRadius: 18,
-				border: `1.5px solid ${active ? "#1B3D35" : "#E5E7E3"}`,
-				backgroundColor: active ? "#1B3D35" : "#FAF8F4",
-				color: active ? "#fff" : "#5C6B66",
-				fontSize: 12,
-				fontWeight: active ? 700 : 400,
+				border: `1px solid ${active ? "#1B3D35" : "#E5E7E3"}`,
+				backgroundColor: active ? "#1B3D35" : "#fff",
+				color: active ? "#fff" : "#1B3D35",
+				fontSize: 13,
+				fontWeight: active ? 700 : 500,
 				cursor: "pointer",
 				whiteSpace: "nowrap",
+				flexShrink: 0,
 			}}
 		>
-			{label}
+			{label} <span style={{ fontSize: 10 }}>▾</span>
 		</button>
 	);
 }
 
-function RangeInput({
-	minValue,
-	maxValue,
-	onMin,
-	onMax,
-	placeholder,
-	unit,
+function SheetOption({
+	label,
+	selected,
+	onClick,
 }: {
-	minValue: string;
-	maxValue: string;
-	onMin: (v: string) => void;
-	onMax: (v: string) => void;
-	placeholder: [string, string];
-	unit: string;
+	label: string;
+	selected: boolean;
+	onClick: () => void;
 }) {
-	const inputStyle: React.CSSProperties = {
-		width: "100%",
-		padding: "9px 10px",
-		borderRadius: 8,
-		border: "1.5px solid #E5E7E3",
-		fontSize: 13,
-		outline: "none",
-		boxSizing: "border-box",
-	};
-	const sanitize = (v: string) => v.replace(/[^0-9.]/g, "");
 	return (
-		<div
+		<button
+			onClick={onClick}
 			style={{
 				display: "flex",
+				justifyContent: "space-between",
 				alignItems: "center",
-				gap: 8,
 				width: "100%",
+				padding: "14px 24px",
+				border: "none",
+				background: "none",
+				fontSize: 16,
+				fontWeight: selected ? 700 : 400,
+				color: selected ? "#1B3D35" : "#333D4B",
+				cursor: "pointer",
+				textAlign: "left",
 			}}
 		>
-			<div style={{ flex: 1, position: "relative" }}>
-				<input
-					type="text"
-					inputMode="decimal"
-					value={minValue}
-					onChange={(e) => onMin(sanitize(e.target.value))}
-					placeholder={placeholder[0]}
-					style={inputStyle}
+			{label}
+			{selected && (
+				<span style={{ color: "#1B3D35", fontWeight: 800 }}>✓</span>
+			)}
+		</button>
+	);
+}
+
+function SheetToggle({
+	label,
+	description,
+	on,
+	onToggle,
+}: {
+	label: string;
+	description: string;
+	on: boolean;
+	onToggle: () => void;
+}) {
+	return (
+		<div
+			onClick={onToggle}
+			style={{
+				display: "flex",
+				justifyContent: "space-between",
+				alignItems: "center",
+				padding: "12px 24px",
+				cursor: "pointer",
+			}}
+		>
+			<div>
+				<div style={{ fontSize: 16, color: "#333D4B" }}>{label}</div>
+				<div style={{ fontSize: 12, color: "#9BA6A2", marginTop: 2 }}>
+					{description}
+				</div>
+			</div>
+			{/* 토글 스위치 */}
+			<div
+				style={{
+					width: 46,
+					height: 28,
+					borderRadius: 14,
+					backgroundColor: on ? "#1B3D35" : "#E5E7E3",
+					position: "relative",
+					transition: "background-color 0.2s",
+					flexShrink: 0,
+				}}
+			>
+				<div
+					style={{
+						width: 22,
+						height: 22,
+						borderRadius: "50%",
+						backgroundColor: "#fff",
+						position: "absolute",
+						top: 3,
+						left: on ? 21 : 3,
+						transition: "left 0.2s",
+						boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+					}}
 				/>
 			</div>
-			<span style={{ color: "#9BA6A2", fontSize: 12, flexShrink: 0 }}>
-				{unit} ~
-			</span>
-			<div style={{ flex: 1, position: "relative" }}>
-				<input
-					type="text"
-					inputMode="decimal"
-					value={maxValue}
-					onChange={(e) => onMax(sanitize(e.target.value))}
-					placeholder={placeholder[1]}
-					style={inputStyle}
-				/>
-			</div>
-			<span style={{ color: "#9BA6A2", fontSize: 12, flexShrink: 0 }}>
-				{unit}
-			</span>
 		</div>
 	);
 }
