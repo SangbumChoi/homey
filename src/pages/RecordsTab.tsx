@@ -10,8 +10,8 @@ const RESULT_BADGE: Record<
 	{ label: string; bg: string; color: string } | null
 > = {
 	none: null,
-	won: { label: "낙찰", bg: "#E6F7EF", color: "#00B274" },
-	lost: { label: "패찰", bg: "#F0F2EF", color: "#5C6B66" },
+	won: { label: "낙찰", bg: "#B6F09C", color: "#111" },
+	lost: { label: "패찰", bg: "#EFEDE4", color: "#555" },
 };
 
 /** 기록 탭 — 물건별 임장 메모와 입찰 결과를 모아 봐요 */
@@ -51,13 +51,13 @@ export function RecordsTab() {
 					style={{
 						fontSize: 22,
 						fontWeight: 800,
-						color: "#1B3D35",
+						color: "#111",
 						letterSpacing: "-0.5px",
 					}}
 				>
 					임장·입찰 기록
 				</div>
-				<div style={{ fontSize: 12, color: "#5C6B66", marginTop: 2 }}>
+				<div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
 					{entries.length > 0
 						? `기록 ${entries.length}건 · 입찰 ${bidCount}건 · 낙찰 ${wonCount}건`
 						: "다녀온 물건과 입찰 결과를 남겨보세요"}
@@ -69,11 +69,11 @@ export function RecordsTab() {
 					style={{
 						textAlign: "center",
 						padding: "64px 32px",
-						color: "#9BA6A2",
+						color: "#8C8576",
 					}}
 				>
 					<div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
-					<div style={{ fontSize: 15, fontWeight: 700, color: "#5C6B66" }}>
+					<div style={{ fontSize: 15, fontWeight: 700, color: "#555" }}>
 						아직 기록이 없어요
 					</div>
 					<div style={{ fontSize: 13, marginTop: 6, lineHeight: 1.6 }}>
@@ -91,11 +91,12 @@ export function RecordsTab() {
 						return (
 							<div
 								key={key}
-								className="touchable"
+								className="nb nb-press"
 								onClick={() => setEditKey(key)}
 								style={{
-									padding: "14px 20px",
-									borderBottom: "1px solid #F0F2EF",
+									margin: "10px 16px",
+									borderRadius: 14,
+									padding: "13px 15px",
 									cursor: "pointer",
 								}}
 							>
@@ -113,7 +114,7 @@ export function RecordsTab() {
 											flex: 1,
 											fontSize: 14,
 											fontWeight: 700,
-											color: "#1B3D35",
+											color: "#111",
 											lineHeight: 1.45,
 											wordBreak: "keep-all",
 										}}
@@ -124,11 +125,12 @@ export function RecordsTab() {
 										<span
 											style={{
 												fontSize: 11,
-												fontWeight: 700,
+												fontWeight: 900,
 												color: badge.color,
 												backgroundColor: badge.bg,
-												borderRadius: 6,
-												padding: "3px 8px",
+												border: "2px solid #111",
+												borderRadius: 7,
+												padding: "2px 8px",
 												flexShrink: 0,
 											}}
 										>
@@ -142,7 +144,7 @@ export function RecordsTab() {
 									<div
 										style={{
 											fontSize: 13,
-											color: "#1B3D35",
+											color: "#111",
 											fontWeight: 600,
 											marginBottom: 3,
 										}}
@@ -158,7 +160,7 @@ export function RecordsTab() {
 									<div
 										style={{
 											fontSize: 13,
-											color: "#5C6B66",
+											color: "#555",
 											lineHeight: 1.5,
 											display: "-webkit-box",
 											WebkitLineClamp: 2,
@@ -179,7 +181,7 @@ export function RecordsTab() {
 										marginTop: 6,
 									}}
 								>
-									<span style={{ fontSize: 11, color: "#9BA6A2" }}>
+									<span style={{ fontSize: 11, color: "#8C8576" }}>
 										{date.toLocaleDateString("ko-KR")} 기록
 									</span>
 									{item && (
@@ -192,7 +194,7 @@ export function RecordsTab() {
 												border: "none",
 												background: "none",
 												fontSize: 12,
-												color: "#5C6B66",
+												color: "#555",
 												cursor: "pointer",
 												padding: 0,
 											}}

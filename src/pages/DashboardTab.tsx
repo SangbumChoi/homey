@@ -82,136 +82,89 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 
 	return (
 		<>
-			{/* ── 다크 그라디언트 히어로 ── */}
-			<div
-				style={{
-					position: "relative",
-					overflow: "hidden",
-					background:
-						"linear-gradient(135deg, #0C2620 0%, #1B3D35 58%, #2C5648 100%)",
-					padding: "30px 20px 46px",
-				}}
-			>
-				{/* 장식용 글로우 */}
+			{/* ── 헤더 ── */}
+			<div style={{ padding: "26px 20px 0" }}>
 				<div
+					className="rise"
 					style={{
-						position: "absolute",
-						top: -70,
-						right: -50,
-						width: 220,
-						height: 220,
-						borderRadius: "50%",
-						background:
-							"radial-gradient(circle, rgba(124,212,178,0.22) 0%, rgba(124,212,178,0) 70%)",
-						pointerEvents: "none",
-					}}
-				/>
-				<div
-					style={{
-						position: "absolute",
-						right: 14,
-						top: 22,
-						fontSize: 72,
-						opacity: 0.1,
-						pointerEvents: "none",
+						display: "inline-block",
+						backgroundColor: "#B6F09C",
+						border: "2.5px solid #111",
+						boxShadow: "3px 3px 0 #111",
+						padding: "3px 10px",
+						fontSize: 11,
+						fontWeight: 900,
+						color: "#111",
+						transform: "rotate(-2deg)",
 					}}
 				>
-					⚖️
-				</div>
-
-				<div
-					style={{
-						fontSize: 12,
-						fontWeight: 600,
-						color: "rgba(255,255,255,0.55)",
-						letterSpacing: "0.2px",
-					}}
-				>
-					{fmtKoreanDate(dataDate)} 데이터 기준
+					{fmtKoreanDate(dataDate)} 기준
 				</div>
 				<div
 					style={{
-						fontSize: 25,
-						fontWeight: 800,
-						color: "#fff",
-						letterSpacing: "-0.5px",
-						marginTop: 5,
+						fontSize: 26,
+						fontWeight: 900,
+						color: "#111",
+						letterSpacing: "-1px",
+						marginTop: 12,
 					}}
 				>
-					오늘의 경매
-				</div>
-
-				{/* 히어로 통계 */}
-				<div style={{ display: "flex", marginTop: 24 }}>
-					<HeroStat
-						label="진행 물건"
-						value={upcoming.length}
-						onClick={() => goAuction()}
-					/>
-					<HeroDivider />
-					<HeroStat
-						label="이번 주 기일"
-						value={thisWeek.length}
-						highlight={thisWeek.length > 0}
-						onClick={() => goAuction()}
-					/>
-					<HeroDivider />
-					<HeroStat
-						label="관심 물건"
-						value={favorites.length}
-						onClick={goFavorites}
-					/>
+					오늘의 경매 ⚡
 				</div>
 			</div>
 
-			{/* ── 빠른 필터 — 히어로에 겹쳐 떠 있는 카드 ── */}
+			{/* ── 요약 카드 ── */}
 			<div
 				className="rise"
+				style={{ display: "flex", gap: 10, margin: "16px 20px 0" }}
+			>
+				<StatCard
+					label="진행 물건"
+					value={upcoming.length}
+					onClick={() => goAuction()}
+				/>
+				<StatCard
+					label="이번 주 기일"
+					value={thisWeek.length}
+					bg={thisWeek.length > 0 ? "#FFD43B" : "#fff"}
+					onClick={() => goAuction()}
+				/>
+				<StatCard label="관심 물건" value={favorites.length} onClick={goFavorites} />
+			</div>
+
+			{/* ── 빠른 필터 ── */}
+			<div
+				className="hide-scrollbar rise"
 				style={{
-					margin: "-26px 20px 0",
-					position: "relative",
-					backgroundColor: "#fff",
-					borderRadius: 20,
-					padding: "14px 16px 16px",
-					boxShadow: "0 8px 24px rgba(12, 38, 32, 0.10)",
+					display: "flex",
+					gap: 9,
+					overflowX: "auto",
+					padding: "16px 20px 2px",
+					animationDelay: "0.04s",
 				}}
 			>
-				<div
-					style={{
-						fontSize: 12,
-						fontWeight: 700,
-						color: "#9BA6A2",
-						marginBottom: 10,
-					}}
-				>
-					빠르게 찾기
-				</div>
-				<div
-					className="hide-scrollbar"
-					style={{ display: "flex", gap: 8, overflowX: "auto" }}
-				>
-					{QUICK_FILTERS.map(({ label, preset }) => (
-						<button
-							key={label}
-							className="touchable"
-							onClick={() => goAuction(preset)}
-							style={{
-								padding: "9px 13px",
-								borderRadius: 18,
-								border: "none",
-								backgroundColor: "#F4F4F0",
-								color: "#1B3D35",
-								fontSize: 13,
-								fontWeight: 600,
-								cursor: "pointer",
-								whiteSpace: "nowrap",
-								flexShrink: 0,
-							}}
-						>
-							{label}
-						</button>
-					))}
-				</div>
+				{QUICK_FILTERS.map(({ label, preset }) => (
+					<button
+						key={label}
+						className="nb-press"
+						onClick={() => goAuction(preset)}
+						style={{
+							padding: "8px 12px",
+							borderRadius: 18,
+							border: "2.5px solid #111",
+							backgroundColor: "#fff",
+							color: "#111",
+							fontSize: 13,
+							fontWeight: 800,
+							boxShadow: "3px 3px 0 #111",
+							cursor: "pointer",
+							whiteSpace: "nowrap",
+							flexShrink: 0,
+						}}
+					>
+						{label}
+					</button>
+				))}
 			</div>
 
 			{/* ── 관심 물건 기일 ── */}
@@ -254,7 +207,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 										style={{
 											fontSize: 13,
 											fontWeight: 700,
-											color: "#1B3D35",
+											color: "#111",
 											whiteSpace: "nowrap",
 											overflow: "hidden",
 											textOverflow: "ellipsis",
@@ -263,7 +216,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 										{rowTitle(item)}
 									</div>
 									<div
-										style={{ fontSize: 12, color: "#5C6B66", marginTop: 3 }}
+										style={{ fontSize: 12, color: "#555", marginTop: 3 }}
 									>
 										{formatKRW(item.minPrice)} ·{" "}
 										{item.saleDate.slice(5).replace("-", ".")}
@@ -307,7 +260,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 											style={{
 												fontSize: 13,
 												fontWeight: 700,
-												color: "#1B3D35",
+												color: "#111",
 												whiteSpace: "nowrap",
 												overflow: "hidden",
 												textOverflow: "ellipsis",
@@ -316,12 +269,12 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 											{displayName(item)}
 										</div>
 										<div
-											style={{ fontSize: 12, color: "#5C6B66", marginTop: 3 }}
+											style={{ fontSize: 12, color: "#555", marginTop: 3 }}
 										>
 											<span
 												style={{
 													textDecoration: "line-through",
-													color: "#9BA6A2",
+													color: "#8C8576",
 												}}
 											>
 												{formatKRW(prev)}
@@ -368,60 +321,46 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 }
 
 /* ────────────────── 소품 ────────────────── */
-function HeroStat({
+function StatCard({
 	label,
 	value,
-	highlight,
+	bg = "#fff",
 	onClick,
 }: {
 	label: string;
 	value: number;
-	highlight?: boolean;
+	bg?: string;
 	onClick?: () => void;
 }) {
 	return (
 		<div
+			className="nb nb-press"
 			onClick={onClick}
 			style={{
 				flex: 1,
+				borderRadius: 12,
+				backgroundColor: bg,
+				padding: "12px 0",
 				textAlign: "center",
 				cursor: onClick ? "pointer" : "default",
 			}}
 		>
 			<div
 				style={{
-					fontSize: 22,
-					fontWeight: 800,
-					color: highlight ? "#FF8A80" : "#fff",
+					fontSize: 20,
+					fontWeight: 900,
+					color: "#111",
 					lineHeight: 1.2,
 					letterSpacing: "-0.3px",
 				}}
 			>
 				{value}
-				<span style={{ fontSize: 13, fontWeight: 600, marginLeft: 1 }}>건</span>
+				<span style={{ fontSize: 12, fontWeight: 700, marginLeft: 1 }}>건</span>
 			</div>
-			<div
-				style={{
-					fontSize: 11,
-					color: "rgba(255,255,255,0.55)",
-					marginTop: 4,
-				}}
-			>
+			<div style={{ fontSize: 10, fontWeight: 700, color: "#555", marginTop: 3 }}>
 				{label}
 			</div>
 		</div>
-	);
-}
-
-function HeroDivider() {
-	return (
-		<div
-			style={{
-				width: 1,
-				backgroundColor: "rgba(255,255,255,0.14)",
-				margin: "5px 0",
-			}}
-		/>
 	);
 }
 
@@ -449,7 +388,7 @@ function Section({
 					marginBottom: 10,
 				}}
 			>
-				<span style={{ fontSize: 15, fontWeight: 700, color: "#1B3D35" }}>
+				<span style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>
 					{title}
 				</span>
 				{action && (
@@ -460,7 +399,7 @@ function Section({
 							background: "none",
 							padding: 0,
 							fontSize: 12,
-							color: "#9BA6A2",
+							color: "#8C8576",
 							cursor: "pointer",
 						}}
 					>
@@ -477,13 +416,8 @@ function Section({
 function RowCard({ children }: { children: React.ReactNode }) {
 	return (
 		<div
-			style={{
-				backgroundColor: "#fff",
-				borderRadius: 20,
-				overflow: "hidden",
-				border: "1px solid #F2F1ED",
-				boxShadow: "0 4px 16px rgba(12, 38, 32, 0.05)",
-			}}
+			className="nb"
+			style={{ borderRadius: 14, overflow: "hidden" }}
 		>
 			{children}
 		</div>
@@ -503,20 +437,14 @@ function EmptyCard({
 }) {
 	return (
 		<div
-			style={{
-				backgroundColor: "#fff",
-				borderRadius: 20,
-				border: "1px solid #F2F1ED",
-				boxShadow: "0 4px 16px rgba(12, 38, 32, 0.05)",
-				padding: "24px 16px",
-				textAlign: "center",
-			}}
+			className="nb"
+			style={{ borderRadius: 14, padding: "24px 16px", textAlign: "center" }}
 		>
 			<div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
 			<div
 				style={{
 					fontSize: 13,
-					color: "#5C6B66",
+					color: "#555",
 					lineHeight: 1.6,
 					whiteSpace: "pre-line",
 				}}
@@ -525,17 +453,16 @@ function EmptyCard({
 			</div>
 			{actionLabel && (
 				<button
-					className="touchable"
 					onClick={onAction}
+					className="nb nb-press"
 					style={{
-						marginTop: 12,
+						marginTop: 14,
 						padding: "8px 16px",
 						borderRadius: 10,
-						border: "none",
-						backgroundColor: "#1B3D35",
-						color: "#fff",
+						backgroundColor: "#FFD43B",
+						color: "#111",
 						fontSize: 13,
-						fontWeight: 700,
+						fontWeight: 900,
 						cursor: "pointer",
 					}}
 				>

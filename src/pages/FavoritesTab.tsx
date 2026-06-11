@@ -33,13 +33,13 @@ export function FavoritesTab({ goAuction }: { goAuction?: () => void }) {
 					style={{
 						fontSize: 22,
 						fontWeight: 800,
-						color: "#1B3D35",
+						color: "#111",
 						letterSpacing: "-0.5px",
 					}}
 				>
 					관심 물건
 				</div>
-				<div style={{ fontSize: 12, color: "#5C6B66", marginTop: 2 }}>
+				<div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
 					{favItems.length}건을 담아뒀어요
 				</div>
 			</div>
@@ -49,11 +49,11 @@ export function FavoritesTab({ goAuction }: { goAuction?: () => void }) {
 					style={{
 						textAlign: "center",
 						padding: "64px 32px",
-						color: "#9BA6A2",
+						color: "#8C8576",
 					}}
 				>
 					<div style={{ fontSize: 40, marginBottom: 12 }}>⭐</div>
-					<div style={{ fontSize: 15, fontWeight: 700, color: "#5C6B66" }}>
+					<div style={{ fontSize: 15, fontWeight: 700, color: "#555" }}>
 						아직 담은 물건이 없어요
 					</div>
 					<div style={{ fontSize: 13, marginTop: 6, lineHeight: 1.6 }}>
@@ -63,17 +63,16 @@ export function FavoritesTab({ goAuction }: { goAuction?: () => void }) {
 					</div>
 					{goAuction && (
 						<button
-							className="touchable"
+							className="nb nb-press"
 							onClick={goAuction}
 							style={{
 								marginTop: 16,
 								padding: "10px 20px",
 								borderRadius: 10,
-								border: "none",
-								backgroundColor: "#1B3D35",
-								color: "#fff",
+								backgroundColor: "#FFD43B",
+								color: "#111",
 								fontSize: 13,
-								fontWeight: 700,
+								fontWeight: 900,
 								cursor: "pointer",
 							}}
 						>
@@ -104,11 +103,12 @@ export function FavoritesTab({ goAuction }: { goAuction?: () => void }) {
 									style={{
 										padding: "7px 16px",
 										borderRadius: 18,
-										border: `1px solid ${view === key ? "#1B3D35" : "#E5E7E3"}`,
-										backgroundColor: view === key ? "#1B3D35" : "#fff",
-										color: view === key ? "#fff" : "#1B3D35",
+										border: "2.5px solid #111",
+										backgroundColor: view === key ? "#B6F09C" : "#fff",
+										color: "#111",
 										fontSize: 13,
-										fontWeight: view === key ? 700 : 500,
+										fontWeight: view === key ? 900 : 700,
+										boxShadow: view === key ? "3px 3px 0 #111" : "none",
 										cursor: "pointer",
 									}}
 								>
@@ -180,7 +180,7 @@ function CompareTable({
 	const cellStyle: React.CSSProperties = {
 		padding: "10px 10px",
 		fontSize: 12,
-		borderBottom: "1px solid #F0F2EF",
+		borderBottom: "2px solid #111",
 		whiteSpace: "nowrap",
 	};
 
@@ -194,7 +194,7 @@ function CompareTable({
 								...cellStyle,
 								position: "sticky",
 								left: 0,
-								backgroundColor: "#fff",
+								backgroundColor: "#FFFBEF",
 								zIndex: 1,
 							}}
 						/>
@@ -210,7 +210,7 @@ function CompareTable({
 									verticalAlign: "bottom",
 									textAlign: "left",
 									fontWeight: 700,
-									color: "#1B3D35",
+									color: "#111",
 									lineHeight: 1.4,
 									cursor: "pointer",
 									wordBreak: "keep-all",
@@ -229,9 +229,9 @@ function CompareTable({
 									...cellStyle,
 									position: "sticky",
 									left: 0,
-									backgroundColor: "#fff",
+									backgroundColor: "#FFFBEF",
 									zIndex: 1,
-									color: "#9BA6A2",
+									color: "#8C8576",
 									fontWeight: 600,
 									paddingRight: 14,
 								}}
@@ -242,26 +242,26 @@ function CompareTable({
 								const dday = dDayLabel(item.saleDate);
 								const per = pricePerPyeong(item);
 								let content: React.ReactNode;
-								let color = "#1B3D35";
+								let color = "#111";
 								let weight = 500;
 								switch (metric) {
 									case "최저가":
 										content = formatKRW(item.minPrice);
 										if (item.minPrice === minPrice) {
-											color = "#00B274";
-											weight = 800;
+											color = "#1B7A40";
+											weight = 900;
 										}
 										break;
 									case "평당가":
 										content = formatKRW(Math.round(per));
 										if (per === minPer) {
-											color = "#00B274";
-											weight = 800;
+											color = "#1B7A40";
+											weight = 900;
 										}
 										break;
 									case "감정가 대비":
 										content = `${item.minRate}%`;
-										if (item.minRate < 100) color = "#F44336";
+										if (item.minRate < 100) color = "#E03131";
 										break;
 									case "면적":
 										content = `${item.areaPyeong}평`;
@@ -300,12 +300,12 @@ function CompareTable({
 			<div
 				style={{
 					fontSize: 11,
-					color: "#9BA6A2",
+					color: "#8C8576",
 					marginTop: 10,
 					paddingRight: 20,
 				}}
 			>
-				초록색은 비교 중 가장 낮은 가격이에요 · 물건명을 누르면 상세를 볼 수
+				진초록은 비교 중 가장 낮은 가격이에요 · 물건명을 누르면 상세를 볼 수
 				있어요
 			</div>
 		</div>

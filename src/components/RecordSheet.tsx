@@ -65,9 +65,9 @@ export function RecordSheet({ itemKey, address, onClose }: Props) {
 		width: "100%",
 		padding: "11px 12px",
 		borderRadius: 10,
-		border: "1px solid #E5E7E3",
+		border: "2px solid #111",
 		fontSize: 15,
-		color: "#1B3D35",
+		color: "#111",
 		outline: "none",
 		boxSizing: "border-box",
 	};
@@ -108,11 +108,12 @@ export function RecordSheet({ itemKey, address, onClose }: Props) {
 								flex: 1,
 								padding: "9px 0",
 								borderRadius: 10,
-								border: `1.5px solid ${result === key ? "#1B3D35" : "#E5E7E3"}`,
-								backgroundColor: result === key ? "#E7EFEC" : "#fff",
-								color: result === key ? "#1B3D35" : "#5C6B66",
+								border: "2.5px solid #111",
+								backgroundColor: result === key ? "#FFD43B" : "#fff",
+								color: "#111",
+								boxShadow: result === key ? "3px 3px 0 #111" : "none",
 								fontSize: 14,
-								fontWeight: result === key ? 700 : 400,
+								fontWeight: result === key ? 900 : 600,
 								cursor: "pointer",
 							}}
 						>
@@ -195,7 +196,7 @@ function FieldLabel({
 			style={{
 				fontSize: 12,
 				fontWeight: 700,
-				color: "#5C6B66",
+				color: "#555",
 				marginBottom: 6,
 				...style,
 			}}
@@ -207,7 +208,7 @@ function FieldLabel({
 
 function HintText({ children }: { children: React.ReactNode }) {
 	return (
-		<div style={{ fontSize: 12, color: "#9BA6A2", marginTop: 4 }}>
+		<div style={{ fontSize: 12, color: "#8C8576", marginTop: 4 }}>
 			{children}
 		</div>
 	);

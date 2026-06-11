@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BottomSheet, Button, TextButton } from "@toss/tds-mobile";
+import { BottomSheet, TextButton } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import { useAuctionStore } from "../store/useAuctionStore";
 import {
@@ -115,30 +115,51 @@ export function dDayLabel(saleDate: string): {
 	label: string;
 	color: string;
 	bg: string;
+	level: "past" | "urgent" | "soon" | "normal";
 } {
 	const diff = Math.round(
 		(new Date(saleDate).getTime() - new Date(todayStr()).getTime()) / 86400000,
 	);
-	if (diff < 0) return { label: "기일 지남", color: "#9BA6A2", bg: "#F0F2EF" };
-	if (diff === 0) return { label: "D-Day", color: "#D32F2F", bg: "#FFEBEE" };
-	if (diff <= 7) return { label: `D-${diff}`, color: "#D32F2F", bg: "#FFEBEE" };
+	if (diff < 0)
+		return { label: "기일 지남", color: "#888", bg: "#EFEDE4", level: "past" };
+	if (diff === 0)
+		return { label: "D-Day", color: "#E03131", bg: "#FF6B6B", level: "urgent" };
+	if (diff <= 7)
+		return {
+			label: `D-${diff}`,
+			color: "#E03131",
+			bg: "#FF6B6B",
+			level: "urgent",
+		};
 	if (diff <= 14)
-		return { label: `D-${diff}`, color: "#E65100", bg: "#FFF3E0" };
-	return { label: `D-${diff}`, color: "#1B3D35", bg: "#E7EFEC" };
+		return {
+			label: `D-${diff}`,
+			color: "#946800",
+			bg: "#FFD43B",
+			level: "soon",
+		};
+	return { label: `D-${diff}`, color: "#111", bg: "#fff", level: "normal" };
 }
 
-/** 매각기일 D-day 알약 배지 */
+/** 매각기일 D-day 알약 배지 — 네오브루탈 */
 export function DdayPill({ saleDate }: { saleDate: string }) {
 	const d = dDayLabel(saleDate);
+	const text: Record<typeof d.level, string> = {
+		past: "#888",
+		urgent: "#fff",
+		soon: "#111",
+		normal: "#111",
+	};
 	return (
 		<span
 			style={{
-				fontSize: 11,
-				fontWeight: 800,
-				color: d.color,
+				fontSize: 10,
+				fontWeight: 900,
+				color: text[d.level],
 				backgroundColor: d.bg,
-				borderRadius: 6,
-				padding: "3px 7px",
+				border: `2px solid ${d.level === "past" ? "#BBB4A4" : "#111"}`,
+				borderRadius: 7,
+				padding: "2px 6px",
 				whiteSpace: "nowrap",
 			}}
 		>
@@ -336,13 +357,13 @@ export function AuctionTab({
 					style={{
 						fontSize: 22,
 						fontWeight: 800,
-						color: "#1B3D35",
+						color: "#111",
 						letterSpacing: "-0.5px",
 					}}
 				>
 							경매 물건
 						</div>
-						<div style={{ fontSize: 12, color: "#5C6B66", marginTop: 2 }}>
+						<div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
 							{dataDate ? `${dataDate} 기준` : ""} · 전체 {items.length}건
 						</div>
 					</div>
@@ -353,15 +374,23 @@ export function AuctionTab({
 						style={{ display: "none" }}
 						onChange={handleUpload}
 					/>
-					<Button
-						size="small"
-						color="dark"
-						variant="weak"
-						loading={uploading}
+					<button
+						className="nb nb-press"
+						disabled={uploading}
 						onClick={() => fileRef.current?.click()}
+						style={{
+							borderRadius: 10,
+							padding: "8px 12px",
+							fontSize: 12,
+							fontWeight: 900,
+							backgroundColor: "#FFD43B",
+							color: "#111",
+							cursor: "pointer",
+							flexShrink: 0,
+						}}
 					>
-						엑셀 업로드
-					</Button>
+						{uploading ? "읽는 중…" : "엑셀 업로드"}
+					</button>
 				</div>
 
 				{uploadMsg && (
@@ -371,8 +400,10 @@ export function AuctionTab({
 							padding: "8px 12px",
 							borderRadius: 8,
 							fontSize: 12,
-							backgroundColor: uploadMsg.error ? "#FFF5F5" : "#E7EFEC",
-							color: uploadMsg.error ? "#F44336" : "#1B3D35",
+							border: "2px solid #111",
+							backgroundColor: uploadMsg.error ? "#FF6B6B" : "#B6F09C",
+							color: uploadMsg.error ? "#fff" : "#111",
+							fontWeight: 700,
 						}}
 					>
 						{uploadMsg.error ? "⚠️ " : "✅ "}
@@ -387,9 +418,8 @@ export function AuctionTab({
 					position: "sticky",
 					top: 0,
 					zIndex: 10,
-					backgroundColor: "#fff",
-					borderBottom: "1px solid #F0F2EF",
-					boxShadow: "0 4px 12px rgba(15, 43, 37, 0.04)",
+					backgroundColor: "#FFFBEF",
+					borderBottom: "2.5px solid #111",
 				}}
 			>
 			<div
@@ -437,8 +467,8 @@ export function AuctionTab({
 					alignItems: "center",
 				}}
 			>
-				<div style={{ fontSize: 13, color: "#5C6B66" }}>
-					<strong style={{ color: "#1B3D35" }}>{filtered.length}건</strong>
+				<div style={{ fontSize: 13, color: "#555" }}>
+					<strong style={{ color: "#111" }}>{filtered.length}건</strong>
 					{activeFilterCount > 0 && (
 						<TextButton
 							size="xsmall"
@@ -456,7 +486,7 @@ export function AuctionTab({
 						border: "none",
 						background: "none",
 						fontSize: 12,
-						color: "#5C6B66",
+						color: "#555",
 						cursor: "pointer",
 						padding: "4px 0",
 					}}
@@ -473,11 +503,11 @@ export function AuctionTab({
 						style={{
 							textAlign: "center",
 							padding: "56px 24px",
-							color: "#9BA6A2",
+							color: "#8C8576",
 						}}
 					>
 						<div style={{ fontSize: 40, marginBottom: 10 }}>🏚️</div>
-						<div style={{ fontSize: 14, fontWeight: 600, color: "#5C6B66" }}>
+						<div style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>
 							조건에 맞는 물건이 없어요
 						</div>
 						<div style={{ fontSize: 12, marginTop: 4 }}>
@@ -623,7 +653,7 @@ export function AuctionTab({
 						borderTop: "1px solid #F0F2EF",
 					}}
 				>
-					<span style={{ fontSize: 15, color: "#1B3D35" }}>표시 단위</span>
+					<span style={{ fontSize: 15, color: "#111" }}>표시 단위</span>
 					<div style={{ display: "flex", gap: 4 }}>
 						{(
 							[
@@ -637,11 +667,11 @@ export function AuctionTab({
 								style={{
 									padding: "5px 14px",
 									borderRadius: 8,
-									border: "none",
 									fontSize: 13,
-									fontWeight: areaUnit === u ? 700 : 400,
-									backgroundColor: areaUnit === u ? "#1B3D35" : "#F0F2EF",
-									color: areaUnit === u ? "#fff" : "#5C6B66",
+									fontWeight: areaUnit === u ? 900 : 500,
+									border: "2px solid #111",
+									backgroundColor: areaUnit === u ? "#FFD43B" : "#fff",
+									color: "#111",
 									cursor: "pointer",
 								}}
 							>
@@ -664,7 +694,7 @@ export function AuctionTab({
 						padding: "4px 24px 10px",
 						fontSize: 12,
 						fontWeight: 700,
-						color: "#9BA6A2",
+						color: "#8C8576",
 					}}
 				>
 					유찰
@@ -688,7 +718,7 @@ export function AuctionTab({
 						padding: "14px 24px 10px",
 						fontSize: 12,
 						fontWeight: 700,
-						color: "#9BA6A2",
+						color: "#8C8576",
 						borderTop: "1px solid #F0F2EF",
 						marginTop: 8,
 					}}
@@ -772,11 +802,12 @@ export function AuctionRow({
 
 	return (
 		<div
-			className="touchable"
+			className="nb nb-press"
 			onClick={onClick}
 			style={{
-				padding: "14px 20px",
-				borderBottom: "1px solid #F0F2EF",
+				margin: "10px 16px",
+				borderRadius: 14,
+				padding: "13px 15px",
 				cursor: "pointer",
 			}}
 		>
@@ -787,7 +818,7 @@ export function AuctionRow({
 						flex: 1,
 						fontSize: 14,
 						fontWeight: 700,
-						color: "#1B3D35",
+						color: "#111",
 						lineHeight: 1.45,
 						wordBreak: "keep-all",
 					}}
@@ -807,7 +838,7 @@ export function AuctionRow({
 							padding: "0 0 0 4px",
 							fontSize: 18,
 							lineHeight: 1.2,
-							color: fav ? "#FFB331" : "#C8CFC9",
+							color: fav ? "#FFB331" : "#C9C2B2",
 							cursor: "pointer",
 							flexShrink: 0,
 						}}
@@ -828,9 +859,9 @@ export function AuctionRow({
 			>
 				<span
 					style={{
-						fontSize: 18,
-						fontWeight: 800,
-						color: "#1B3D35",
+						fontSize: 19,
+						fontWeight: 900,
+						color: "#111",
 						letterSpacing: "-0.3px",
 					}}
 				>
@@ -839,12 +870,13 @@ export function AuctionRow({
 				{discounted && (
 					<span
 						style={{
-							fontSize: 11,
-							fontWeight: 800,
-							color: "#D32F2F",
-							backgroundColor: "#FFEBEE",
-							borderRadius: 6,
-							padding: "3px 7px",
+							fontSize: 10,
+							fontWeight: 900,
+							color: "#fff",
+							backgroundColor: "#FF6B6B",
+							border: "2px solid #111",
+							borderRadius: 7,
+							padding: "2px 6px",
 						}}
 					>
 						감정가 {item.minRate}%
@@ -853,12 +885,13 @@ export function AuctionRow({
 				{isShare && (
 					<span
 						style={{
-							fontSize: 11,
-							fontWeight: 800,
-							color: "#D32F2F",
-							backgroundColor: "#FFEBEE",
-							borderRadius: 6,
-							padding: "3px 7px",
+							fontSize: 10,
+							fontWeight: 900,
+							color: "#fff",
+							backgroundColor: "#FF6B6B",
+							border: "2px solid #111",
+							borderRadius: 7,
+							padding: "2px 6px",
 						}}
 					>
 						지분
@@ -873,7 +906,7 @@ export function AuctionRow({
 					alignItems: "center",
 					gap: 8,
 					fontSize: 12,
-					color: "#5C6B66",
+					color: "#555",
 					lineHeight: 1.5,
 				}}
 			>
@@ -929,7 +962,7 @@ export function DetailSheet({
 					<div
 						style={{
 							fontSize: 13,
-							color: "#5C6B66",
+							color: "#555",
 							lineHeight: 1.5,
 							marginBottom: 14,
 						}}
@@ -946,14 +979,14 @@ export function DetailSheet({
 							marginBottom: 14,
 						}}
 					>
-						<span style={{ fontSize: 24, fontWeight: 800, color: "#1B3D35" }}>
+						<span style={{ fontSize: 24, fontWeight: 800, color: "#111" }}>
 							{formatKRW(item.minPrice)}
 						</span>
 						<span
 							style={{
 								fontSize: 13,
 								fontWeight: 700,
-								color: item.minRate < 100 ? "#F44336" : "#9BA6A2",
+								color: item.minRate < 100 ? "#F44336" : "#8C8576",
 							}}
 						>
 							감정가의 {item.minRate}%
@@ -970,11 +1003,11 @@ export function DetailSheet({
 										flex: 1,
 										padding: "10px 0",
 										borderRadius: 10,
-										border: `1.5px solid ${fav ? "#FFB331" : "#E5E7E3"}`,
-										backgroundColor: fav ? "#FFF8EA" : "#fff",
-										color: fav ? "#C77700" : "#5C6B66",
+										border: "2.5px solid #111",
+										backgroundColor: fav ? "#FFD43B" : "#fff",
+										color: "#111",
 										fontSize: 14,
-										fontWeight: 700,
+										fontWeight: 900,
 										cursor: "pointer",
 									}}
 								>
@@ -988,11 +1021,11 @@ export function DetailSheet({
 										flex: 1,
 										padding: "10px 0",
 										borderRadius: 10,
-										border: "1.5px solid #E5E7E3",
+										border: "2.5px solid #111",
 										backgroundColor: "#fff",
-										color: "#1B3D35",
+										color: "#111",
 										fontSize: 14,
-										fontWeight: 700,
+										fontWeight: 900,
 										cursor: "pointer",
 									}}
 								>
@@ -1005,7 +1038,7 @@ export function DetailSheet({
 					{/* 상세 표 */}
 					<div
 						style={{
-							backgroundColor: "#FAF8F4",
+							border: "2px solid #111",
 							borderRadius: 12,
 							padding: "4px 14px",
 							marginBottom: 12,
@@ -1047,7 +1080,7 @@ export function DetailSheet({
 								backgroundColor: isShare ? "#FFF5F5" : "#F8FAFF",
 								borderRadius: 10,
 								fontSize: 12,
-								color: isShare ? "#C62828" : "#5C6B66",
+								color: isShare ? "#C62828" : "#555",
 								lineHeight: 1.6,
 							}}
 						>
@@ -1079,10 +1112,10 @@ function DetailRow({
 				fontSize: 13,
 			}}
 		>
-			<span style={{ color: "#9BA6A2", flexShrink: 0 }}>{label}</span>
+			<span style={{ color: "#8C8576", flexShrink: 0 }}>{label}</span>
 			<span
 				style={{
-					color: valueColor ?? "#1B3D35",
+					color: valueColor ?? "#111",
 					fontWeight: 600,
 					textAlign: "right",
 				}}
@@ -1105,23 +1138,23 @@ function FilterChip({
 }) {
 	return (
 		<button
-			className="touchable"
+			className={active ? "nb-press" : undefined}
 			onClick={onClick}
 			style={{
-				padding: "9px 13px",
+				padding: "7px 11px",
 				borderRadius: 18,
-				border: "none",
-				backgroundColor: active ? "#1B3D35" : "#F4F4F0",
-				color: active ? "#fff" : "#1B3D35",
+				border: "2.5px solid #111",
+				backgroundColor: active ? "#B6F09C" : "#fff",
+				color: "#111",
 				fontSize: 13,
-				fontWeight: active ? 700 : 600,
+				fontWeight: active ? 900 : 700,
+				boxShadow: active ? "3px 3px 0 #111" : "none",
 				cursor: "pointer",
 				whiteSpace: "nowrap",
 				flexShrink: 0,
 			}}
 		>
-			{label}{" "}
-			<span style={{ fontSize: 10, opacity: active ? 0.8 : 0.45 }}>▾</span>
+			{label} <span style={{ fontSize: 10, opacity: 0.55 }}>▾</span>
 		</button>
 	);
 }
@@ -1148,14 +1181,14 @@ function SheetOption({
 				background: "none",
 				fontSize: 16,
 				fontWeight: selected ? 700 : 400,
-				color: selected ? "#1B3D35" : "#333D4B",
+				color: selected ? "#111" : "#333D4B",
 				cursor: "pointer",
 				textAlign: "left",
 			}}
 		>
 			{label}
 			{selected && (
-				<span style={{ color: "#1B3D35", fontWeight: 800 }}>✓</span>
+				<span style={{ color: "#111", fontWeight: 800 }}>✓</span>
 			)}
 		</button>
 	);
@@ -1185,7 +1218,7 @@ function SheetToggle({
 		>
 			<div>
 				<div style={{ fontSize: 16, color: "#333D4B" }}>{label}</div>
-				<div style={{ fontSize: 12, color: "#9BA6A2", marginTop: 2 }}>
+				<div style={{ fontSize: 12, color: "#8C8576", marginTop: 2 }}>
 					{description}
 				</div>
 			</div>
@@ -1195,7 +1228,7 @@ function SheetToggle({
 					width: 46,
 					height: 28,
 					borderRadius: 14,
-					backgroundColor: on ? "#1B3D35" : "#E5E7E3",
+					backgroundColor: on ? "#111" : "#E5E0D2",
 					position: "relative",
 					transition: "background-color 0.2s",
 					flexShrink: 0,

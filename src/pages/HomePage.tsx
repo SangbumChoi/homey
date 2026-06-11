@@ -28,7 +28,7 @@ export function HomePage({ activeTab }: Props) {
 					flex: 1,
 					overflowY: "auto",
 					paddingBottom: 8,
-					backgroundColor: "#fff",
+					backgroundColor: "#FFFBEF",
 				}}
 			>
 				{tab === "home" && (
@@ -52,7 +52,7 @@ export function HomePage({ activeTab }: Props) {
 				style={{
 					display: "flex",
 					backgroundColor: "#fff",
-					boxShadow: "0 -4px 16px rgba(12, 38, 32, 0.06)",
+					borderTop: "2.5px solid #111",
 					flexShrink: 0,
 					paddingBottom: "env(safe-area-inset-bottom, 0px)",
 				}}
@@ -66,7 +66,7 @@ export function HomePage({ activeTab }: Props) {
 					] as const
 				).map(([key, label]) => {
 					const active = tab === key;
-					const color = active ? "#1B3D35" : "#9BA6A2";
+					const color = active ? "#111" : "#A9A28F";
 					return (
 						<button
 							key={key}
@@ -128,7 +128,7 @@ export function HomePage({ activeTab }: Props) {
 							<span
 								style={{
 									fontSize: 11,
-									fontWeight: active ? 700 : 400,
+									fontWeight: active ? 900 : 600,
 									color,
 								}}
 							>

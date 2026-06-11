@@ -13,19 +13,33 @@ html, body {
 
 @media (min-width: 481px) {
 	#root {
-		background-color: #ffffff !important;
+		background-color: #fffbef !important;
 		max-width: 480px;
 		margin: 0 auto;
 	}
 }
 
 /* ── 공통 인터랙션 ── */
-/* 누를 수 있는 행/카드에 가벼운 눌림 피드백을 줘요 */
+/* 누를 수 있는 행에 가벼운 눌림 피드백을 줘요 */
 .touchable {
 	transition: background-color 0.15s ease;
 }
 .touchable:active {
-	background-color: rgba(27, 61, 53, 0.06);
+	background-color: rgba(17, 17, 17, 0.06);
+}
+
+/* ── 네오브루탈 카드 ── */
+.nb {
+	background: #fff;
+	border: 2.5px solid #111;
+	box-shadow: 4px 4px 0 #111;
+}
+.nb-press {
+	transition: transform 0.08s ease, box-shadow 0.08s ease;
+}
+.nb-press:active {
+	transform: translate(3px, 3px);
+	box-shadow: 1px 1px 0 #111 !important;
 }
 
 /* 가로 스크롤 영역의 스크롤바를 숨겨요 (칩바 등) */
