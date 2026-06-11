@@ -253,6 +253,8 @@ function SwipeToDeleteRow({
 
 	const base = open ? -DELETE_W : 0;
 	const x = drag ?? base;
+	/* 0(닫힘) → 1(완전히 열림) — 버튼 등장 모션에 써요 */
+	const progress = Math.min(1, -x / DELETE_W);
 
 	const endDrag = () => {
 		if (!start.current) return;
@@ -271,29 +273,67 @@ function SwipeToDeleteRow({
 			style={{
 				position: "relative",
 				overflow: "hidden",
-				backgroundColor: "#E03131",
+				backgroundColor: "#FFFBEF",
 				borderBottom: "1px solid #EFE9D8",
 			}}
 		>
-			{/* 뒤에 숨어 있는 삭제 버튼 */}
-			<button
-				onClick={onDelete}
+			{/* 뒤에 숨어 있는 삭제 버튼 — 스와이프한 만큼 커지면서 나타나요 */}
+			<div
 				style={{
 					position: "absolute",
 					top: 0,
 					right: 0,
 					bottom: 0,
 					width: DELETE_W,
-					border: "none",
-					backgroundColor: "#E03131",
-					color: "#fff",
-					fontSize: 13,
-					fontWeight: 900,
-					cursor: "pointer",
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
 				}}
 			>
-				삭제
-			</button>
+				<button
+					aria-label="기록 삭제"
+					onClick={onDelete}
+					className="nb-press"
+					style={{
+						width: 48,
+						height: 48,
+						borderRadius: 16,
+						border: "2.5px solid #111",
+						backgroundColor: "#FF6B6B",
+						boxShadow: "3px 3px 0 #111",
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						cursor: "pointer",
+						transform: `scale(${0.4 + 0.6 * progress})`,
+						opacity: progress,
+						// 닫힌 행의 버튼이 포커스/탭을 받지 않게 완전히 숨겨요
+						visibility: progress === 0 ? "hidden" : "visible",
+						transition:
+							drag === null
+								? "transform 0.18s ease, opacity 0.18s ease"
+								: "none",
+					}}
+				>
+					{/* 휴지통 아이콘 */}
+					<svg
+						width="22"
+						height="22"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="#111"
+						strokeWidth="2.2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<path d="M3 6h18" />
+						<path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2" />
+						<path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+						<line x1="10" y1="11" x2="10" y2="17" />
+						<line x1="14" y1="11" x2="14" y2="17" />
+					</svg>
+				</button>
+			</div>
 
 			{/* 앞면 — 끌리는 영역 */}
 			<div
