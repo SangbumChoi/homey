@@ -4,8 +4,7 @@ import "./App.css";
 import { useAppStore } from "./store/useAppStore";
 import { seedMockData } from "./services/mockData";
 
-import { OnboardingPage } from "./pages/OnboardingPage";
-import { HomePage } from "./pages/HomePage";
+import { HomePage, type HomeTab } from "./pages/HomePage";
 import { DiagnosisSearchPage } from "./pages/DiagnosisSearchPage";
 import { DiagnosisDepositPage } from "./pages/DiagnosisDepositPage";
 import { DiagnosisDocPage } from "./pages/DiagnosisDocPage";
@@ -17,8 +16,7 @@ import { InAppAdsPage } from "./pages/InAppAdsPage";
 
 /* ── Navigation state ── */
 export type Page =
-	| { type: "onboarding" }
-	| { type: "home"; tab?: "diagnosis" | "auction" | "myhome" | "history" }
+	| { type: "home"; tab?: HomeTab }
 	| { type: "diagnosis-search"; mode?: "myhome" }
 	| { type: "diagnosis-deposit" }
 	| { type: "diagnosis-doc"; deposit: string; monthlyRent: string }
@@ -37,25 +35,16 @@ function App() {
 		seedMockData(store);
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// If no userType, show onboarding (unless already there)
-	const effectivePage =
-		!store.userType && page.type !== "onboarding"
-			? { type: "onboarding" as const }
-			: page;
-
 	const nav = (p: Page) => setPage(p);
-	const goHome = (tab?: "diagnosis" | "auction" | "myhome" | "history") =>
-		nav({ type: "home", tab });
+	const goHome = (tab?: HomeTab) => nav({ type: "home", tab });
 
-	switch (effectivePage.type) {
-		case "onboarding":
-			return <OnboardingPage onDone={() => goHome()} />;
+	switch (page.type) {
 		case "home":
-			return <HomePage nav={nav} activeTab={effectivePage.tab} />;
+			return <HomePage nav={nav} activeTab={page.tab} />;
 		case "diagnosis-search":
 			return (
 				<DiagnosisSearchPage
-					mode={effectivePage.mode}
+					mode={page.mode}
 					onBack={() => goHome()}
 					nav={nav}
 				/>
@@ -65,34 +54,25 @@ function App() {
 		case "diagnosis-doc":
 			return (
 				<DiagnosisDocPage
-					deposit={effectivePage.deposit}
-					monthlyRent={effectivePage.monthlyRent}
+					deposit={page.deposit}
+					monthlyRent={page.monthlyRent}
 					onBack={() => nav({ type: "diagnosis-deposit" })}
 					nav={nav}
 				/>
 			);
 		case "diagnosis-result":
-			return (
-				<DiagnosisResultPage
-					id={effectivePage.id}
-					onBack={() => goHome()}
-					nav={nav}
-				/>
-			);
+			return <DiagnosisResultPage id={page.id} onBack={() => goHome()} nav={nav} />;
 		case "myhome-register":
 			return (
-				<MyhomeRegisterPage
-					onBack={() => goHome("myhome")}
-					onDone={() => goHome("myhome")}
-				/>
+				<MyhomeRegisterPage onBack={() => goHome()} onDone={() => goHome()} />
 			);
 		case "checklist":
 			return (
 				<ChecklistPage
-					diagnosisId={effectivePage.diagnosisId}
+					diagnosisId={page.diagnosisId}
 					onBack={() =>
-						effectivePage.diagnosisId
-							? nav({ type: "diagnosis-result", id: effectivePage.diagnosisId })
+						page.diagnosisId
+							? nav({ type: "diagnosis-result", id: page.diagnosisId })
 							: goHome()
 					}
 				/>

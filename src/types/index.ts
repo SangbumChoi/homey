@@ -131,6 +131,21 @@ export interface AuctionItem {
 	note: string | null;
 }
 
+/** 경매 물건에 남기는 임장/입찰 기록 */
+export interface AuctionRecord {
+	/** 임장 메모 */
+	memo: string;
+	/** 내 입찰가 (원) — 입찰 안 했으면 null */
+	bidAmount: number | null;
+	/** 입찰 결과 */
+	result: "none" | "won" | "lost";
+	/** 실제 낙찰가 (원) — 모르면 null */
+	winningPrice: number | null;
+	/** 물건이 목록에서 사라져도 보여줄 주소 스냅샷 */
+	addressSnapshot: string;
+	updatedAt: string;
+}
+
 export interface MyHome {
 	id: string;
 	address: Address;

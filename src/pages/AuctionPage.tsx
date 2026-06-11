@@ -1,13 +1,22 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BottomSheet, Button, TextButton } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import { useAuctionStore } from "../store/useAuctionStore";
 import {
+	auctionKey,
 	parseAuctionXlsx,
 	formatKRW,
 	pricePerPyeong,
 } from "../utils/auctionXlsx";
+import { RecordSheet } from "../components/RecordSheet";
 import type { AuctionItem } from "../types";
+
+/** 대시보드 빠른 필터에서 전달받는 필터 프리셋 */
+export interface AuctionPreset {
+	failFilter?: "all" | "new" | "failed";
+	priceRange?: [number | null, number | null];
+	areaRange?: [number | null, number | null];
+}
 
 /* ────────────────── 정렬 ────────────────── */
 type SortKey =
@@ -56,7 +65,7 @@ type SheetKind =
 
 /* ────────────────── 헬퍼 ────────────────── */
 /** "서울동부지방법원" → "동부", "성남지원" → "성남" */
-function shortCourt(court: string): string {
+export function shortCourt(court: string): string {
 	return court.replace("서울", "").replace("지방법원", "").replace("지원", "");
 }
 
@@ -86,23 +95,23 @@ function fullAddress(address: string): string {
 }
 
 /** 리스트 행 제목 — 주소 전체에 단지명(괄호 안)이 따로 있으면 덧붙여요 */
-function rowTitle(item: AuctionItem): string {
+export function rowTitle(item: AuctionItem): string {
 	const name = buildingName(item.address);
 	const addr = fullAddress(item.address);
 	return name && !addr.includes(name) ? `${addr} (${name})` : addr;
 }
 
 /** 상세 시트 제목 — 단지명이 있으면 단지명, 없으면 짧은 주소 */
-function displayName(item: AuctionItem): string {
+export function displayName(item: AuctionItem): string {
 	return buildingName(item.address) ?? shortAddress(item.address);
 }
 
-function todayStr(): string {
+export function todayStr(): string {
 	const d = new Date();
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function dDayLabel(saleDate: string): { label: string; color: string } {
+export function dDayLabel(saleDate: string): { label: string; color: string } {
 	const diff = Math.round(
 		(new Date(saleDate).getTime() - new Date(todayStr()).getTime()) / 86400000,
 	);
@@ -114,9 +123,22 @@ function dDayLabel(saleDate: string): { label: string; color: string } {
 }
 
 /* ────────────────── 메인 ────────────────── */
-export function AuctionTab() {
-	const { items, dataDate, lastUploadAt, importItems, reset } =
-		useAuctionStore();
+export function AuctionTab({
+	preset,
+	onPresetApplied,
+}: {
+	preset?: AuctionPreset | null;
+	onPresetApplied?: () => void;
+} = {}) {
+	const {
+		items,
+		dataDate,
+		lastUploadAt,
+		importItems,
+		reset,
+		favorites,
+		toggleFavorite,
+	} = useAuctionStore();
 
 	/* 필터 상태 */
 	const [region, setRegion] = useState<string | null>(null);
@@ -139,7 +161,18 @@ export function AuctionTab() {
 	/* 시트 상태 */
 	const [sheet, setSheet] = useState<SheetKind>(null);
 	const [detail, setDetail] = useState<AuctionItem | null>(null);
+	const [recordItem, setRecordItem] = useState<AuctionItem | null>(null);
 	const closeSheet = () => setSheet(null);
+
+	/* 대시보드 빠른 필터 프리셋 적용 */
+	useEffect(() => {
+		if (!preset) return;
+		if (preset.failFilter) setFailFilter(preset.failFilter);
+		if (preset.priceRange) setPriceRange(preset.priceRange);
+		if (preset.areaRange) setAreaRange(preset.areaRange);
+		onPresetApplied?.();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [preset]);
 
 	/* 업로드 */
 	const fileRef = useRef<HTMLInputElement>(null);
@@ -409,14 +442,19 @@ export function AuctionTab() {
 						</div>
 					</div>
 				) : (
-					filtered.map((item) => (
-						<AuctionRow
-							key={`${item.caseNo}|${item.itemNo}`}
-							item={item}
-							areaUnit={areaUnit}
-							onClick={() => setDetail(item)}
-						/>
-					))
+					filtered.map((item) => {
+						const key = auctionKey(item);
+						return (
+							<AuctionRow
+								key={key}
+								item={item}
+								areaUnit={areaUnit}
+								fav={favorites.includes(key)}
+								onToggleFav={() => toggleFavorite(key)}
+								onClick={() => setDetail(item)}
+							/>
+						);
+					})
 				)}
 
 				{lastUploadAt && (
@@ -648,26 +686,46 @@ export function AuctionTab() {
 			</BottomSheet>
 
 			{/* ── 상세 시트 ── */}
-			<DetailSheet item={detail} onClose={() => setDetail(null)} />
+			<DetailSheet
+				item={detail}
+				fav={detail ? favorites.includes(auctionKey(detail)) : false}
+				onToggleFav={() => detail && toggleFavorite(auctionKey(detail))}
+				onWriteRecord={() => {
+					setRecordItem(detail);
+					setDetail(null);
+				}}
+				onClose={() => setDetail(null)}
+			/>
+
+			{/* ── 기록 시트 ── */}
+			<RecordSheet
+				itemKey={recordItem ? auctionKey(recordItem) : null}
+				address={recordItem?.address ?? ""}
+				onClose={() => setRecordItem(null)}
+			/>
 		</>
 	);
 }
 
 /* ────────────────── 리스트 행 ────────────────── */
-function AuctionRow({
+export function AuctionRow({
 	item,
 	areaUnit,
+	fav,
+	onToggleFav,
 	onClick,
 }: {
 	item: AuctionItem;
-	areaUnit: "pyeong" | "m2";
+	areaUnit?: "pyeong" | "m2";
+	fav?: boolean;
+	onToggleFav?: () => void;
 	onClick: () => void;
 }) {
 	const dday = dDayLabel(item.saleDate);
 	const isShare = item.note?.includes("지분") ?? false;
 	const discounted = item.minRate < 100;
 	const areaText =
-		areaUnit === "pyeong" ? `${item.areaPyeong}평` : `${item.areaM2}㎡`;
+		areaUnit === "m2" ? `${item.areaM2}㎡` : `${item.areaPyeong}평`;
 	const perPyeong = formatKRW(Math.round(pricePerPyeong(item)));
 
 	return (
@@ -680,17 +738,40 @@ function AuctionRow({
 			}}
 		>
 			{/* 1줄: 주소 — 가장 중요한 정보라 전부 보여주고, 길면 줄바꿈해요 */}
-			<div
-				style={{
-					fontSize: 14,
-					fontWeight: 700,
-					color: "#1B3D35",
-					lineHeight: 1.45,
-					marginBottom: 5,
-					wordBreak: "keep-all",
-				}}
-			>
-				{rowTitle(item)}
+			<div style={{ display: "flex", gap: 8, marginBottom: 5 }}>
+				<div
+					style={{
+						flex: 1,
+						fontSize: 14,
+						fontWeight: 700,
+						color: "#1B3D35",
+						lineHeight: 1.45,
+						wordBreak: "keep-all",
+					}}
+				>
+					{rowTitle(item)}
+				</div>
+				{onToggleFav && (
+					<button
+						aria-label={fav ? "관심 해제" : "관심 등록"}
+						onClick={(e) => {
+							e.stopPropagation();
+							onToggleFav();
+						}}
+						style={{
+							border: "none",
+							background: "none",
+							padding: "0 0 0 4px",
+							fontSize: 18,
+							lineHeight: 1.2,
+							color: fav ? "#FFB331" : "#C8CFC9",
+							cursor: "pointer",
+							flexShrink: 0,
+						}}
+					>
+						{fav ? "★" : "☆"}
+					</button>
+				)}
 			</div>
 
 			{/* 2줄: 최저가 + 할인율 + 지분 경고 */}
@@ -740,11 +821,17 @@ function AuctionRow({
 }
 
 /* ────────────────── 상세 시트 ────────────────── */
-function DetailSheet({
+export function DetailSheet({
 	item,
+	fav,
+	onToggleFav,
+	onWriteRecord,
 	onClose,
 }: {
 	item: AuctionItem | null;
+	fav?: boolean;
+	onToggleFav?: () => void;
+	onWriteRecord?: () => void;
 	onClose: () => void;
 }) {
 	const dday = item ? dDayLabel(item.saleDate) : null;
@@ -797,6 +884,48 @@ function DetailSheet({
 							감정가의 {item.minRate}%
 						</span>
 					</div>
+
+					{/* 관심·기록 액션 */}
+					{(onToggleFav || onWriteRecord) && (
+						<div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+							{onToggleFav && (
+								<button
+									onClick={onToggleFav}
+									style={{
+										flex: 1,
+										padding: "10px 0",
+										borderRadius: 10,
+										border: `1.5px solid ${fav ? "#FFB331" : "#E5E7E3"}`,
+										backgroundColor: fav ? "#FFF8EA" : "#fff",
+										color: fav ? "#C77700" : "#5C6B66",
+										fontSize: 14,
+										fontWeight: 700,
+										cursor: "pointer",
+									}}
+								>
+									{fav ? "★ 관심 물건" : "☆ 관심 등록"}
+								</button>
+							)}
+							{onWriteRecord && (
+								<button
+									onClick={onWriteRecord}
+									style={{
+										flex: 1,
+										padding: "10px 0",
+										borderRadius: 10,
+										border: "1.5px solid #E5E7E3",
+										backgroundColor: "#fff",
+										color: "#1B3D35",
+										fontSize: 14,
+										fontWeight: 700,
+										cursor: "pointer",
+									}}
+								>
+									📝 임장·입찰 기록
+								</button>
+							)}
+						</div>
+					)}
 
 					{/* 상세 표 */}
 					<div
