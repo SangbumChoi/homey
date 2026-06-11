@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { BottomSheet, TextButton } from "@toss/tds-mobile";
-import { colors } from "@toss/tds-colors";
+import { BottomSheet } from "@toss/tds-mobile";
 import { useAuctionStore } from "../store/useAuctionStore";
 import { formatKRW } from "../utils/auctionXlsx";
 import type { AuctionRecord } from "../types";
@@ -25,8 +24,7 @@ function wonToMan(won: number | null): string {
 
 /** 물건에 임장 메모·입찰 결과를 남기는 시트예요 */
 export function RecordSheet({ itemKey, address, onClose }: Props) {
-	const { records, saveRecord, deleteRecord } = useAuctionStore();
-	const existing = itemKey ? records[itemKey] : undefined;
+	const { records, saveRecord } = useAuctionStore();
 
 	const [memo, setMemo] = useState("");
 	const [bid, setBid] = useState("");
@@ -161,24 +159,6 @@ export function RecordSheet({ itemKey, address, onClose }: Props) {
 							</HintText>
 						)}
 					</>
-				)}
-
-				{/* 기록 삭제 */}
-				{existing && (
-					<div style={{ textAlign: "center", marginTop: 20 }}>
-						<TextButton
-							size="small"
-							color={colors.red500}
-							onClick={() => {
-								if (itemKey && confirm("이 기록을 삭제할까요?")) {
-									deleteRecord(itemKey);
-									onClose();
-								}
-							}}
-						>
-							기록 삭제
-						</TextButton>
-					</div>
 				)}
 			</div>
 		</BottomSheet>

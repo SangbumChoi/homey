@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAuctionStore } from "../store/useAuctionStore";
 import { auctionKey, formatKRW } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
@@ -16,8 +16,11 @@ const RESULT_BADGE: Record<
 
 /** 기록 탭 — 물건별 임장 메모와 입찰 결과를 모아 봐요 */
 export function RecordsTab() {
-	const { items, records, favorites, toggleFavorite } = useAuctionStore();
+	const { items, records, favorites, toggleFavorite, deleteRecord } =
+		useAuctionStore();
 	const [editKey, setEditKey] = useState<string | null>(null);
+	/* 왼쪽으로 밀어 삭제 버튼이 열려 있는 행 */
+	const [swipedKey, setSwipedKey] = useState<string | null>(null);
 	const [detail, setDetail] = useState<AuctionItem | null>(null);
 
 	const itemByKey = useMemo(
@@ -89,16 +92,15 @@ export function RecordsTab() {
 						const badge = RESULT_BADGE[record.result];
 						const date = new Date(record.updatedAt);
 						return (
-							<div
+							<SwipeToDeleteRow
 								key={key}
-								className="touchable"
-								onClick={() => setEditKey(key)}
-								style={{
-									backgroundColor: "#fff",
-									padding: "13px 20px",
-									borderBottom: "1px solid #EFE9D8",
-									cursor: "pointer",
+								open={swipedKey === key}
+								onOpenChange={(open) => setSwipedKey(open ? key : null)}
+								onDelete={() => {
+									deleteRecord(key);
+									setSwipedKey(null);
 								}}
+								onClick={() => setEditKey(key)}
 							>
 								{/* 제목 + 결과 배지 */}
 								<div
@@ -203,7 +205,7 @@ export function RecordsTab() {
 										</button>
 									)}
 								</div>
-							</div>
+							</SwipeToDeleteRow>
 						);
 					})}
 				</div>
@@ -221,5 +223,119 @@ export function RecordsTab() {
 				onClose={() => setDetail(null)}
 			/>
 		</>
+	);
+}
+
+/* ────────────────── 스와이프 삭제 행 ────────────────── */
+const DELETE_W = 84;
+
+/**
+ * 행을 왼쪽으로 밀면 삭제 버튼이 나타나는 래퍼예요.
+ * 세로 스크롤과 충돌하지 않도록 가로 의도가 분명할 때만 끌어요.
+ */
+function SwipeToDeleteRow({
+	open,
+	onOpenChange,
+	onDelete,
+	onClick,
+	children,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onDelete: () => void;
+	onClick: () => void;
+	children: React.ReactNode;
+}) {
+	const [drag, setDrag] = useState<number | null>(null);
+	const start = useRef<{ x: number; y: number } | null>(null);
+	const horizontal = useRef(false);
+	const suppressClick = useRef(false);
+
+	const base = open ? -DELETE_W : 0;
+	const x = drag ?? base;
+
+	const endDrag = () => {
+		if (!start.current) return;
+		const finalX = drag;
+		start.current = null;
+		horizontal.current = false;
+		setDrag(null);
+		if (finalX !== null) {
+			suppressClick.current = true;
+			onOpenChange(finalX < -DELETE_W / 2);
+		}
+	};
+
+	return (
+		<div
+			style={{
+				position: "relative",
+				overflow: "hidden",
+				backgroundColor: "#E03131",
+				borderBottom: "1px solid #EFE9D8",
+			}}
+		>
+			{/* 뒤에 숨어 있는 삭제 버튼 */}
+			<button
+				onClick={onDelete}
+				style={{
+					position: "absolute",
+					top: 0,
+					right: 0,
+					bottom: 0,
+					width: DELETE_W,
+					border: "none",
+					backgroundColor: "#E03131",
+					color: "#fff",
+					fontSize: 13,
+					fontWeight: 900,
+					cursor: "pointer",
+				}}
+			>
+				삭제
+			</button>
+
+			{/* 앞면 — 끌리는 영역 */}
+			<div
+				onPointerDown={(e) => {
+					start.current = { x: e.clientX, y: e.clientY };
+					horizontal.current = false;
+				}}
+				onPointerMove={(e) => {
+					if (!start.current) return;
+					const dx = e.clientX - start.current.x;
+					const dy = e.clientY - start.current.y;
+					if (!horizontal.current) {
+						// 가로 의도가 분명해질 때까지는 스크롤에 양보해요
+						if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;
+						horizontal.current = true;
+						e.currentTarget.setPointerCapture(e.pointerId);
+					}
+					setDrag(Math.max(-DELETE_W, Math.min(0, base + dx)));
+				}}
+				onPointerUp={endDrag}
+				onPointerCancel={endDrag}
+				onClick={() => {
+					if (suppressClick.current) {
+						suppressClick.current = false;
+						return;
+					}
+					if (open) onOpenChange(false);
+					else onClick();
+				}}
+				className="touchable"
+				style={{
+					position: "relative",
+					backgroundColor: "#fff",
+					padding: "13px 20px",
+					cursor: "pointer",
+					transform: `translateX(${x}px)`,
+					transition: drag === null ? "transform 0.18s ease" : "none",
+					touchAction: "pan-y",
+				}}
+			>
+				{children}
+			</div>
+		</div>
 	);
 }
