@@ -9,14 +9,15 @@ import { getRecentTrades, estimateRealTradePrice } from "../services/realEstateA
 import { fetchRegistrationDoc, parseUploadedDoc, type ParsedRegistrationDoc } from "../services/registrationDoc";
 import type { Address, DiagnosisResult, LandlordRiskInput } from "../types";
 import type { Page } from "../App";
+import { AuctionTab } from "./AuctionPage";
 
 interface Props {
 	nav: (p: Page) => void;
-	activeTab?: "diagnosis" | "myhome" | "history";
+	activeTab?: "diagnosis" | "auction" | "myhome" | "history";
 }
 
 export function HomePage({ nav, activeTab }: Props) {
-	const [tab, setTab] = useState<"diagnosis" | "myhome" | "history">(
+	const [tab, setTab] = useState<"diagnosis" | "auction" | "myhome" | "history">(
 		activeTab ?? "diagnosis",
 	);
 
@@ -24,6 +25,7 @@ export function HomePage({ nav, activeTab }: Props) {
 		<div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
 			<div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
 				{tab === "diagnosis" && <DiagnosisTab nav={nav} />}
+				{tab === "auction" && <AuctionTab />}
 				{tab === "myhome" && <MyhomeTab nav={nav} />}
 				{tab === "history" && <HistoryTab nav={nav} />}
 			</div>
@@ -41,6 +43,7 @@ export function HomePage({ nav, activeTab }: Props) {
 				{(
 					[
 						["diagnosis", "홈"],
+						["auction", "경매"],
 						["myhome", "내 집"],
 						["history", "기록"],
 					] as const
@@ -70,6 +73,16 @@ export function HomePage({ nav, activeTab }: Props) {
 										<path d="M3 9l9 5.5L21 9" />
 										<path d="M12 14.5V24" />
 										<circle cx="12" cy="11" r="2" fill={active ? color : "none"} />
+									</>
+								)}
+								{key === "auction" && (
+									<>
+										{/* gavel */}
+										<path d="M14 4l6 6" />
+										<path d="M11 7l6 6" />
+										<path d="M12.5 5.5l4-1.5 3.5 3.5-1.5 4z" />
+										<path d="M11.5 9.5L4 17l3 3 7.5-7.5" />
+										<line x1="3" y1="22" x2="13" y2="22" />
 									</>
 								)}
 								{key === "myhome" && (

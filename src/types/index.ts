@@ -101,6 +101,36 @@ export interface MonitoringAlert {
 	isRead: boolean;
 }
 
+/** 법원경매 물건 (주간 엑셀 업로드 데이터) */
+export interface AuctionItem {
+	/** 지역 (예: 서울, 성남 분당구) */
+	region: string;
+	/** 관할 법원 (예: 서울동부지방법원) */
+	court: string;
+	/** 사건번호 (예: 서울동부지방법원 2024타경61725) */
+	caseNo: string;
+	/** 물건번호 */
+	itemNo: string;
+	/** 주소/건물 */
+	address: string;
+	/** 전용면적 ㎡ */
+	areaM2: number;
+	/** 전용면적 평 */
+	areaPyeong: number;
+	/** 감정가 (원) */
+	appraisal: number;
+	/** 최저매각가 (원) */
+	minPrice: number;
+	/** 최저가율 (%) — 감정가 대비 최저가 */
+	minRate: number;
+	/** 유찰 횟수 (신건 = 0) */
+	failCount: number;
+	/** 매각기일 (YYYY-MM-DD) */
+	saleDate: string;
+	/** 비고 (지분매각, 특별매각조건 등) */
+	note: string | null;
+}
+
 export interface MyHome {
 	id: string;
 	address: Address;

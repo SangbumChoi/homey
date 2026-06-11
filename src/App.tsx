@@ -18,7 +18,7 @@ import { InAppAdsPage } from "./pages/InAppAdsPage";
 /* ── Navigation state ── */
 export type Page =
 	| { type: "onboarding" }
-	| { type: "home"; tab?: "diagnosis" | "myhome" | "history" }
+	| { type: "home"; tab?: "diagnosis" | "auction" | "myhome" | "history" }
 	| { type: "diagnosis-search"; mode?: "myhome" }
 	| { type: "diagnosis-deposit" }
 	| { type: "diagnosis-doc"; deposit: string; monthlyRent: string }
@@ -44,7 +44,7 @@ function App() {
 			: page;
 
 	const nav = (p: Page) => setPage(p);
-	const goHome = (tab?: "diagnosis" | "myhome" | "history") =>
+	const goHome = (tab?: "diagnosis" | "auction" | "myhome" | "history") =>
 		nav({ type: "home", tab });
 
 	switch (effectivePage.type) {
