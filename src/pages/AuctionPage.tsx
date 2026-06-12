@@ -41,18 +41,25 @@ const SORT_OPTIONS: [SortKey, string][] = [
 /** [최소, 최대] 억원 단위 (null = 제한 없음) */
 const PRICE_PRESETS: [string, number | null, number | null][] = [
 	["전체", null, null],
-	["6억 이하", null, 6],
-	["6~9억", 6, 9],
+	["3억 이하", null, 3],
+	["3~5억", 3, 5],
+	["5~7억", 5, 7],
+	["7~9억", 7, 9],
 	["9~12억", 9, 12],
-	["12억 이상", 12, null],
+	["12~15억", 12, 15],
+	["15억 이상", 15, null],
 ];
 
 /** [최소, 최대] 평 단위 (null = 제한 없음) */
 const AREA_PRESETS: [string, number | null, number | null][] = [
 	["전체", null, null],
-	["25평 이하", null, 25],
-	["25~35평", 25, 35],
-	["35평 이상", 35, null],
+	["15평 이하", null, 15],
+	["15~20평", 15, 20],
+	["20~25평", 20, 25],
+	["25~30평", 25, 30],
+	["30~35평", 30, 35],
+	["35~40평", 35, 40],
+	["40평 이상", 40, null],
 ];
 
 type SheetKind =
@@ -661,78 +668,71 @@ export function AuctionTab({
 			</BottomSheet>
 
 			{/* ── 가격 시트 ── */}
-			<BottomSheet
+			<RangeSheet
 				open={sheet === "price"}
+				title="최저가"
+				unit="억"
+				presets={PRICE_PRESETS}
+				value={priceRange}
+				onApply={(range) => {
+					setPriceRange(range);
+					closeSheet();
+				}}
 				onClose={closeSheet}
-				header={<BottomSheet.Header>최저가</BottomSheet.Header>}
-			>
-				{PRICE_PRESETS.map(([label, min, max]) => (
-					<SheetOption
-						key={label}
-						label={label}
-						selected={priceRange[0] === min && priceRange[1] === max}
-						onClick={() => {
-							setPriceRange([min, max]);
-							closeSheet();
-						}}
-					/>
-				))}
-			</BottomSheet>
+			/>
 
 			{/* ── 면적 시트 ── */}
-			<BottomSheet
+			<RangeSheet
 				open={sheet === "area"}
+				title="면적"
+				unit="평"
+				presets={AREA_PRESETS}
+				value={areaRange}
+				onApply={(range) => {
+					setAreaRange(range);
+					closeSheet();
+				}}
 				onClose={closeSheet}
-				header={<BottomSheet.Header>면적</BottomSheet.Header>}
-			>
-				{AREA_PRESETS.map(([label, min, max]) => (
-					<SheetOption
-						key={label}
-						label={label}
-						selected={areaRange[0] === min && areaRange[1] === max}
-						onClick={() => {
-							setAreaRange([min, max]);
-							closeSheet();
+				extra={
+					<div
+						style={{
+							display: "flex",
+							justifyContent: "space-between",
+							alignItems: "center",
+							marginTop: 16,
+							paddingTop: 14,
+							borderTop: "1px solid #EFE9D8",
 						}}
-					/>
-				))}
-				<div
-					style={{
-						display: "flex",
-						justifyContent: "space-between",
-						alignItems: "center",
-						padding: "14px 24px",
-						borderTop: "1px solid #F0F2EF",
-					}}
-				>
-					<span style={{ fontSize: 15, color: "#111" }}>표시 단위</span>
-					<div style={{ display: "flex", gap: 4 }}>
-						{(
-							[
-								["pyeong", "평"],
-								["m2", "㎡"],
-							] as const
-						).map(([u, label]) => (
-							<button
-								key={u}
-								onClick={() => setAreaUnit(u)}
-								style={{
-									padding: "5px 14px",
-									borderRadius: 8,
-									fontSize: 13,
-									fontWeight: areaUnit === u ? 900 : 500,
-									border: "2px solid #111",
-									backgroundColor: areaUnit === u ? "#FFD43B" : "#fff",
-									color: "#111",
-									cursor: "pointer",
-								}}
-							>
-								{label}
-							</button>
-						))}
+					>
+						<span style={{ fontSize: 14, color: "#111" }}>표시 단위</span>
+						<div style={{ display: "flex", gap: 4 }}>
+							{(
+								[
+									["pyeong", "평"],
+									["m2", "㎡"],
+								] as const
+							).map(([u, label]) => (
+								<button
+									key={u}
+									onClick={() => setAreaUnit(u)}
+									style={{
+										padding: "5px 14px",
+										borderRadius: 8,
+										fontSize: 13,
+										fontWeight: areaUnit === u ? 900 : 500,
+										border: "2px solid #111",
+										backgroundColor: areaUnit === u ? "#FFD43B" : "#fff",
+										color: "#111",
+										cursor: "pointer",
+									}}
+								>
+									{label}
+								</button>
+							))}
+						</div>
 					</div>
-				</div>
-			</BottomSheet>
+				}
+			/>
 
 			{/* ── 조건 시트 ── */}
 			<BottomSheet
@@ -1208,6 +1208,151 @@ function FilterChip({
 		>
 			{label} <span style={{ fontSize: 10, opacity: 0.55 }}>▾</span>
 		</button>
+	);
+}
+
+/** 가격·면적 범위 선택 시트 — 프리셋 칩 + 직접 입력 */
+function RangeSheet({
+	open,
+	title,
+	unit,
+	presets,
+	value,
+	onApply,
+	onClose,
+	extra,
+}: {
+	open: boolean;
+	title: string;
+	unit: string;
+	presets: [string, number | null, number | null][];
+	value: [number | null, number | null];
+	onApply: (range: [number | null, number | null]) => void;
+	onClose: () => void;
+	extra?: React.ReactNode;
+}) {
+	const [minStr, setMinStr] = useState("");
+	const [maxStr, setMaxStr] = useState("");
+
+	// 시트가 열릴 때 현재 값을 직접 입력칸에 채워둬요
+	useEffect(() => {
+		if (!open) return;
+		setMinStr(value[0] === null ? "" : String(value[0]));
+		setMaxStr(value[1] === null ? "" : String(value[1]));
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open]);
+
+	const parse = (s: string): number | null => {
+		const n = Number(s);
+		return s.trim() === "" || Number.isNaN(n) || n < 0 ? null : n;
+	};
+
+	const applyCustom = () => {
+		let min = parse(minStr);
+		let max = parse(maxStr);
+		// 최소가 최대보다 크면 자리를 바꿔줘요
+		if (min !== null && max !== null && min > max) [min, max] = [max, min];
+		onApply([min, max]);
+	};
+
+	const inputStyle: React.CSSProperties = {
+		width: "100%",
+		padding: "10px 12px",
+		borderRadius: 10,
+		border: "1.5px solid #C9C2AE",
+		fontSize: 15,
+		color: "#111",
+		outline: "none",
+		boxSizing: "border-box",
+		textAlign: "center",
+	};
+
+	return (
+		<BottomSheet
+			open={open}
+			onClose={onClose}
+			hasTextField
+			header={<BottomSheet.Header>{title}</BottomSheet.Header>}
+		>
+			<div style={{ padding: "0 24px 8px" }}>
+				{/* 프리셋 칩 */}
+				<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+					{presets.map(([label, min, max]) => {
+						const selected = value[0] === min && value[1] === max;
+						return (
+							<button
+								key={label}
+								onClick={() => onApply([min, max])}
+								style={{
+									padding: "8px 13px",
+									borderRadius: 18,
+									border: selected
+										? "2.5px solid #111"
+										: "1.5px solid #C9C2AE",
+									backgroundColor: selected ? "#B6F09C" : "#fff",
+									color: "#111",
+									fontSize: 13,
+									fontWeight: selected ? 900 : 600,
+									boxShadow: selected ? "3px 3px 0 #111" : "none",
+									cursor: "pointer",
+								}}
+							>
+								{label}
+							</button>
+						);
+					})}
+				</div>
+
+				{/* 직접 입력 */}
+				<div
+					style={{
+						fontSize: 12,
+						fontWeight: 700,
+						color: "#555",
+						margin: "18px 0 8px",
+					}}
+				>
+					직접 입력 ({unit} 단위)
+				</div>
+				<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+					<input
+						type="number"
+						inputMode="decimal"
+						value={minStr}
+						onChange={(e) => setMinStr(e.target.value)}
+						placeholder="최소"
+						style={inputStyle}
+					/>
+					<span style={{ color: "#8C8576", flexShrink: 0 }}>~</span>
+					<input
+						type="number"
+						inputMode="decimal"
+						value={maxStr}
+						onChange={(e) => setMaxStr(e.target.value)}
+						placeholder="최대"
+						style={inputStyle}
+					/>
+					<button
+						className="nb nb-press"
+						onClick={applyCustom}
+						style={{
+							flexShrink: 0,
+							padding: "10px 16px",
+							borderRadius: 10,
+							backgroundColor: "#FFD43B",
+							color: "#111",
+							fontSize: 14,
+							fontWeight: 900,
+							cursor: "pointer",
+						}}
+					>
+						적용
+					</button>
+				</div>
+
+				{extra}
+			</div>
+		</BottomSheet>
 	);
 }
 

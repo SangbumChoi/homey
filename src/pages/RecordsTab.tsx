@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useAuctionStore } from "../store/useAuctionStore";
 import { auctionKey, formatKRW } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
@@ -16,8 +16,11 @@ const RESULT_BADGE: Record<
 
 /** 기록 탭 — 물건별 임장 메모와 입찰 결과를 모아 봐요 */
 export function RecordsTab() {
-	const { items, records, favorites, toggleFavorite } = useAuctionStore();
+	const { items, records, favorites, toggleFavorite, deleteRecord } =
+		useAuctionStore();
 	const [editKey, setEditKey] = useState<string | null>(null);
+	/* 왼쪽으로 밀어 삭제 버튼이 열려 있는 행 */
+	const [swipedKey, setSwipedKey] = useState<string | null>(null);
 	const [detail, setDetail] = useState<AuctionItem | null>(null);
 
 	const itemByKey = useMemo(
@@ -89,16 +92,15 @@ export function RecordsTab() {
 						const badge = RESULT_BADGE[record.result];
 						const date = new Date(record.updatedAt);
 						return (
-							<div
+							<SwipeToDeleteRow
 								key={key}
-								className="touchable"
-								onClick={() => setEditKey(key)}
-								style={{
-									backgroundColor: "#fff",
-									padding: "13px 20px",
-									borderBottom: "1px solid #EFE9D8",
-									cursor: "pointer",
+								open={swipedKey === key}
+								onOpenChange={(open) => setSwipedKey(open ? key : null)}
+								onDelete={() => {
+									deleteRecord(key);
+									setSwipedKey(null);
 								}}
+								onClick={() => setEditKey(key)}
 							>
 								{/* 제목 + 결과 배지 */}
 								<div
@@ -203,7 +205,7 @@ export function RecordsTab() {
 										</button>
 									)}
 								</div>
-							</div>
+							</SwipeToDeleteRow>
 						);
 					})}
 				</div>
@@ -221,5 +223,159 @@ export function RecordsTab() {
 				onClose={() => setDetail(null)}
 			/>
 		</>
+	);
+}
+
+/* ────────────────── 스와이프 삭제 행 ────────────────── */
+const DELETE_W = 84;
+
+/**
+ * 행을 왼쪽으로 밀면 삭제 버튼이 나타나는 래퍼예요.
+ * 세로 스크롤과 충돌하지 않도록 가로 의도가 분명할 때만 끌어요.
+ */
+function SwipeToDeleteRow({
+	open,
+	onOpenChange,
+	onDelete,
+	onClick,
+	children,
+}: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onDelete: () => void;
+	onClick: () => void;
+	children: React.ReactNode;
+}) {
+	const [drag, setDrag] = useState<number | null>(null);
+	const start = useRef<{ x: number; y: number } | null>(null);
+	const horizontal = useRef(false);
+	const suppressClick = useRef(false);
+
+	const base = open ? -DELETE_W : 0;
+	const x = drag ?? base;
+	/* 0(닫힘) → 1(완전히 열림) — 버튼 등장 모션에 써요 */
+	const progress = Math.min(1, -x / DELETE_W);
+
+	const endDrag = () => {
+		if (!start.current) return;
+		const finalX = drag;
+		start.current = null;
+		horizontal.current = false;
+		setDrag(null);
+		if (finalX !== null) {
+			suppressClick.current = true;
+			onOpenChange(finalX < -DELETE_W / 2);
+		}
+	};
+
+	return (
+		<div
+			style={{
+				position: "relative",
+				overflow: "hidden",
+				backgroundColor: "#FFFBEF",
+				borderBottom: "1px solid #EFE9D8",
+			}}
+		>
+			{/* 뒤에 숨어 있는 삭제 버튼 — 스와이프한 만큼 커지면서 나타나요 */}
+			<div
+				style={{
+					position: "absolute",
+					top: 0,
+					right: 0,
+					bottom: 0,
+					width: DELETE_W,
+					display: "flex",
+					alignItems: "center",
+					justifyContent: "center",
+				}}
+			>
+				<button
+					aria-label="기록 삭제"
+					onClick={onDelete}
+					className="nb-press"
+					style={{
+						width: 48,
+						height: 48,
+						borderRadius: 16,
+						border: "2.5px solid #111",
+						backgroundColor: "#FF6B6B",
+						boxShadow: "3px 3px 0 #111",
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						cursor: "pointer",
+						transform: `scale(${0.4 + 0.6 * progress})`,
+						opacity: progress,
+						// 닫힌 행의 버튼이 포커스/탭을 받지 않게 완전히 숨겨요
+						visibility: progress === 0 ? "hidden" : "visible",
+						transition:
+							drag === null
+								? "transform 0.18s ease, opacity 0.18s ease"
+								: "none",
+					}}
+				>
+					{/* 휴지통 아이콘 */}
+					<svg
+						width="22"
+						height="22"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="#111"
+						strokeWidth="2.2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<path d="M3 6h18" />
+						<path d="M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2" />
+						<path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+						<line x1="10" y1="11" x2="10" y2="17" />
+						<line x1="14" y1="11" x2="14" y2="17" />
+					</svg>
+				</button>
+			</div>
+
+			{/* 앞면 — 끌리는 영역 */}
+			<div
+				onPointerDown={(e) => {
+					start.current = { x: e.clientX, y: e.clientY };
+					horizontal.current = false;
+				}}
+				onPointerMove={(e) => {
+					if (!start.current) return;
+					const dx = e.clientX - start.current.x;
+					const dy = e.clientY - start.current.y;
+					if (!horizontal.current) {
+						// 가로 의도가 분명해질 때까지는 스크롤에 양보해요
+						if (Math.abs(dx) < 10 || Math.abs(dx) < Math.abs(dy)) return;
+						horizontal.current = true;
+						e.currentTarget.setPointerCapture(e.pointerId);
+					}
+					setDrag(Math.max(-DELETE_W, Math.min(0, base + dx)));
+				}}
+				onPointerUp={endDrag}
+				onPointerCancel={endDrag}
+				onClick={() => {
+					if (suppressClick.current) {
+						suppressClick.current = false;
+						return;
+					}
+					if (open) onOpenChange(false);
+					else onClick();
+				}}
+				className="touchable"
+				style={{
+					position: "relative",
+					backgroundColor: "#fff",
+					padding: "13px 20px",
+					cursor: "pointer",
+					transform: `translateX(${x}px)`,
+					transition: drag === null ? "transform 0.18s ease" : "none",
+					touchAction: "pan-y",
+				}}
+			>
+				{children}
+			</div>
+		</div>
 	);
 }
