@@ -1,0 +1,126 @@
+{
+  "crawlDate": "2026-06-12",
+  "collectedAt": "2026-06-12T11:30:44.222Z",
+  "queryStartDate": "2026.06.12",
+  "queryEndDate": "2026.06.26",
+  "total": 1910,
+  "seoul": 1857,
+  "seongnam": 53,
+  "seongnamDistricts": {
+    "성남시 분당구": 22,
+    "성남시 중원구": 22,
+    "성남시 수정구": 9
+  },
+  "saleDates": [
+    {
+      "saleDate": "2026-06-12",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-13",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-14",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-15",
+      "total": 161,
+      "seoul": 108,
+      "seongnam": 53,
+      "seongnamDistricts": {
+        "성남시 분당구": 22,
+        "성남시 중원구": 22,
+        "성남시 수정구": 9
+      }
+    },
+    {
+      "saleDate": "2026-06-16",
+      "total": 546,
+      "seoul": 546,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-17",
+      "total": 418,
+      "seoul": 418,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-18",
+      "total": 197,
+      "seoul": 197,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-19",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-20",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-21",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-22",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-23",
+      "total": 515,
+      "seoul": 515,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-24",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-25",
+      "total": 73,
+      "seoul": 73,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    },
+    {
+      "saleDate": "2026-06-26",
+      "total": 0,
+      "seoul": 0,
+      "seongnam": 0,
+      "seongnamDistricts": {}
+    }
+  ],
+  "failedLocations": []
+}

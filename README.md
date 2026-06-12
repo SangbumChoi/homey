@@ -118,42 +118,65 @@ import { colors } from "@toss/tds-colors";
 
 ---
 
-## 주간 엑셀 데이터 갱신
+## 매일 경매 데이터 갱신
 
-매주 받는 경매 엑셀을 사용자 기기에 전달하는 방법이에요. **서버 없이** 동작해요.
+서울과 성남의 경매 데이터를 매일 수집하고 날짜별로 공개해요. **별도 서버 없이** 동작해요.
 
-### 권장: 공개 데이터 저장소 (GitHub)
+### 법원경매 자동 수집
 
-코드 저장소(비공개)와 별도로, 데이터만 담는 **공개 저장소**를 하나 만들어요.
-법원경매 물건은 공개 정보라 공개 저장소에 둬도 문제 없어요.
+서울 25개 구와 성남 3개 구의 물건을 가격·면적·물건종류 제한 없이 수집해
+앱이 바로 읽을 수 있는 `auction-data/latest.xlsx`와 날짜별 기록을 만들어요. 법원 사이트의 검색 범위에 맞춰
+실행일로부터 14일 뒤까지의 매각기일을 매번 새로 조회해요.
 
-**1회 설정 (2분):**
+```bash
+npm run crawl:auctions
+```
 
-1. GitHub에서 **public** 저장소 `homey-data`를 만들어요
-2. 이 저장소의 `public/icon.png`를 `icon.png`로 업로드해요 (앱 아이콘)
-3. 첫 엑셀 파일을 `latest.xlsx` 이름으로 업로드해요
+날짜별 Excel, 압축 원본 JSON, 요약 정보는 `auction-data/YYYY-MM-DD/`에 저장해요.
+각 수집일 폴더의 `by-sale-date/`에는 오늘부터 14일 뒤까지를 매각기일 하루 단위로
+분리한 Excel이 들어가며, 현재 0건인 날짜도 새 공고 유입을 비교할 수 있도록 저장해요.
+`auction-data/latest.xlsx`는 항상 가장 최근 수집 결과예요. 원본 응답과 지역별
+진행 상황은 로컬 체크포인트 `data/auction-crawl/latest.json`에도 남아요.
+테스트할 때는 `CRAWL_TARGET_LIMIT=1 npm run crawl:auctions`로 한 지역만 조회할 수 있어요.
+법원 사이트의 화면 구조나 접근 정책이 바뀌면 자동 수집도 함께 조정해야 해요.
+수집 방식과 유지보수 절차는 [`docs/skills/court-auction-crawling.md`](docs/skills/court-auction-crawling.md)에 정리되어 있어요.
 
-**매주 할 일 (30초):**
+### 공개 다운로드
 
-1. github.com/SangbumChoi/homey-data 접속 → `latest.xlsx` 클릭 → 연필(편집) 대신 휴지통 옆 **⋯ → Upload files**로 새 파일을 같은 이름으로 드래그&드롭
-2. 끝 — 앱이 실행될 때(6시간에 1번) 자동으로 받아 병합해요.
-   경매 탭의 **↻ 새 데이터** 버튼으로 즉시 확인할 수도 있어요
+이 저장소를 public으로 전환하면 아래 목록에서 누구나 날짜별 데이터를 다운로드할 수 있어요.
+크롤러가 실행될 때 다운로드 목록도 자동으로 갱신해요.
 
-앱은 `https://raw.githubusercontent.com/SangbumChoi/homey-data/main/latest.xlsx`를
-읽어요 (URL은 `src/services/remoteAuctionData.ts`에서 변경 가능). raw.githubusercontent.com은
-CORS `*`와 HTTPS를 지원해서 토스 미니앱 환경에서 바로 동작해요.
+<!-- AUCTION-DOWNLOADS:START -->
+### Public Auction Data Downloads
 
-### 다른 방법과 비교
+Latest crawl: **2026-06-12**, **1,910 properties**
 
-| 방법 | 평가 |
-|------|------|
-| **GitHub 공개 저장소** | ✅ 무료·버전 관리·CORS 지원·웹에서 업로드 — **권장** |
-| 앱 안에서 직접 업로드 | ✅ 이미 구현돼 있어요 (경매 탭 → 엑셀 업로드). 내 기기에만 반영되는 백업 수단 |
-| 시드 교체 후 재배포 | 데이터가 번들에 포함돼 오프라인에도 안전하지만, 매주 재배포(+검수 가능성)가 필요해요 |
-| AWS S3 | 동작하지만 계정·과금·CORS 설정이 필요해 이 규모에선 과해요 |
-| Google Drive | ❌ 공유 링크가 리다이렉트·인터스티셜을 거치고 CORS를 보장하지 않아 앱에서 직접 받기 어려워요 |
+[Download latest Excel](auction-data/latest.xlsx) | [Download latest raw JSON.gz](auction-data/latest.json.gz) | [View latest metadata](auction-data/latest-metadata.json)
 
-> 저장소가 아직 없어도 앱은 조용히 넘어가요 — 기존 시드 데이터와 수동 업로드가 그대로 동작해요.
+| Crawl date | Excel | Full raw data | Metadata |
+|---|---|---|---|
+| 2026-06-12 | [Excel](auction-data/2026-06-12/seoul-seongnam-auctions.xlsx) | [Raw JSON.gz](auction-data/2026-06-12/raw.json.gz) | [Metadata](auction-data/2026-06-12/metadata.json) |
+
+#### Latest Two-Week Window By Auction Date
+
+| Auction date | Properties | Excel |
+|---|---:|---|
+| 2026-06-12 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-12.xlsx) |
+| 2026-06-13 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-13.xlsx) |
+| 2026-06-14 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-14.xlsx) |
+| 2026-06-15 | 161 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-15.xlsx) |
+| 2026-06-16 | 546 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-16.xlsx) |
+| 2026-06-17 | 418 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-17.xlsx) |
+| 2026-06-18 | 197 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-18.xlsx) |
+| 2026-06-19 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-19.xlsx) |
+| 2026-06-20 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-20.xlsx) |
+| 2026-06-21 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-21.xlsx) |
+| 2026-06-22 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-22.xlsx) |
+| 2026-06-23 | 515 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-23.xlsx) |
+| 2026-06-24 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-24.xlsx) |
+| 2026-06-25 | 73 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-25.xlsx) |
+| 2026-06-26 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-26.xlsx) |
+<!-- AUCTION-DOWNLOADS:END -->
 
 ---
 
