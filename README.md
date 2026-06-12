@@ -133,6 +133,8 @@ npm run crawl:auctions
 ```
 
 날짜별 Excel, 압축 원본 JSON, 요약 정보는 `auction-data/YYYY-MM-DD/`에 저장해요.
+각 수집일 폴더의 `by-sale-date/`에는 오늘부터 14일 뒤까지를 매각기일 하루 단위로
+분리한 Excel이 들어가며, 현재 0건인 날짜도 새 공고 유입을 비교할 수 있도록 저장해요.
 `auction-data/latest.xlsx`는 항상 가장 최근 수집 결과예요. 원본 응답과 지역별
 진행 상황은 로컬 체크포인트 `data/auction-crawl/latest.json`에도 남아요.
 테스트할 때는 `CRAWL_TARGET_LIMIT=1 npm run crawl:auctions`로 한 지역만 조회할 수 있어요.
@@ -154,6 +156,26 @@ Latest crawl: **2026-06-12**, **1,910 properties**
 | Crawl date | Excel | Full raw data | Metadata |
 |---|---|---|---|
 | 2026-06-12 | [Excel](auction-data/2026-06-12/seoul-seongnam-auctions.xlsx) | [Raw JSON.gz](auction-data/2026-06-12/raw.json.gz) | [Metadata](auction-data/2026-06-12/metadata.json) |
+
+#### Latest Two-Week Window By Auction Date
+
+| Auction date | Properties | Excel |
+|---|---:|---|
+| 2026-06-12 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-12.xlsx) |
+| 2026-06-13 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-13.xlsx) |
+| 2026-06-14 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-14.xlsx) |
+| 2026-06-15 | 161 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-15.xlsx) |
+| 2026-06-16 | 546 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-16.xlsx) |
+| 2026-06-17 | 418 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-17.xlsx) |
+| 2026-06-18 | 197 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-18.xlsx) |
+| 2026-06-19 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-19.xlsx) |
+| 2026-06-20 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-20.xlsx) |
+| 2026-06-21 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-21.xlsx) |
+| 2026-06-22 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-22.xlsx) |
+| 2026-06-23 | 515 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-23.xlsx) |
+| 2026-06-24 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-24.xlsx) |
+| 2026-06-25 | 73 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-25.xlsx) |
+| 2026-06-26 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-26.xlsx) |
 <!-- AUCTION-DOWNLOADS:END -->
 
 ---

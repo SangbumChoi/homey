@@ -179,13 +179,22 @@ auction-data/
 └── YYYY-MM-DD/
     ├── seoul-seongnam-auctions.xlsx
     ├── raw.json.gz
-    └── metadata.json
+    ├── metadata.json
+    ├── sale-date-index.json
+    └── by-sale-date/
+        ├── YYYY-MM-DD.xlsx
+        └── ...
 ```
 
 - `latest.xlsx`: Homey's current downloadable/importable workbook.
 - `latest.json.gz`: Compressed full source response for audit and later analysis.
 - `latest-metadata.json`: Small summary suitable for automated verification.
 - Date directory: Immutable daily snapshot.
+- `by-sale-date/`: One workbook for every calendar day in the rolling two-week
+  window, including zero-result days. This makes newly announced auctions easy
+  to compare from one crawl day to the next.
+- `sale-date-index.json`: Counts by auction date, including Seoul and Seongnam
+  subtotals.
 
 The crawler also rewrites the marked download-index section in `README.md`.
 

@@ -56,6 +56,19 @@ function isoDate(value) {
 	return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
 }
 
+function dateRange(start, end) {
+	const dates = [];
+	const [startYear, startMonth, startDay] = isoDate(start).split("-").map(Number);
+	const [endYear, endMonth, endDay] = isoDate(end).split("-").map(Number);
+	const cursor = new Date(Date.UTC(startYear, startMonth - 1, startDay));
+	const last = new Date(Date.UTC(endYear, endMonth - 1, endDay));
+	while (cursor <= last) {
+		dates.push(cursor.toISOString().slice(0, 10));
+		cursor.setUTCDate(cursor.getUTCDate() + 1);
+	}
+	return dates;
+}
+
 const startDate = process.env.AUCTION_START_DATE || dotDate(nowInSeoul);
 const endDate = process.env.AUCTION_END_DATE || dotDate(endInSeoul);
 const crawlDate = isoDate(dotDate(nowInSeoul));
@@ -69,6 +82,8 @@ const archiveRawPath = path.join(archiveDir, "raw.json.gz");
 const archiveMetadataPath = path.join(archiveDir, "metadata.json");
 const latestRawPath = path.join(publicDataDir, "latest.json.gz");
 const latestMetadataPath = path.join(publicDataDir, "latest-metadata.json");
+const saleDateDir = path.join(archiveDir, "by-sale-date");
+const saleDateIndexPath = path.join(archiveDir, "sale-date-index.json");
 
 function parseJson(text) {
 	try {
@@ -259,6 +274,10 @@ async function updateReadme(metadata) {
 		(date) =>
 			`| ${date} | [Excel](auction-data/${date}/seoul-seongnam-auctions.xlsx) | [Raw JSON.gz](auction-data/${date}/raw.json.gz) | [Metadata](auction-data/${date}/metadata.json) |`,
 	);
+	const saleDateRows = metadata.saleDates.map(
+		(item) =>
+			`| ${item.saleDate} | ${item.total.toLocaleString("en-US")} | [Excel](auction-data/${metadata.crawlDate}/by-sale-date/${item.saleDate}.xlsx) |`,
+	);
 	const section = [
 		startMarker,
 		"### Public Auction Data Downloads",
@@ -270,6 +289,12 @@ async function updateReadme(metadata) {
 		"| Crawl date | Excel | Full raw data | Metadata |",
 		"|---|---|---|---|",
 		...rows,
+		"",
+		"#### Latest Two-Week Window By Auction Date",
+		"",
+		"| Auction date | Properties | Excel |",
+		"|---|---:|---|",
+		...saleDateRows,
 		endMarker,
 	].join("\n");
 	const markerPattern = new RegExp(
@@ -279,6 +304,32 @@ async function updateReadme(metadata) {
 		? readme.replace(markerPattern, section)
 		: `${readme.trimEnd()}\n\n---\n\n${section}\n`;
 	await fs.writeFile(readmePath, next);
+}
+
+const detailHeaders = [
+	"지역", "법원", "사건번호", "물건번호", "주소/건물", "면적㎡", "평",
+	"감정가_원", "최저가_원", "최저가율", "유찰", "매각기일", "비고",
+];
+
+function buildWorkbook(rows, summaryRows) {
+	const detail = XLSX.utils.json_to_sheet(rows.map(toHomeyRow), {
+		header: detailHeaders,
+	});
+	detail["!autofilter"] = { ref: detail["!ref"] };
+	detail["!cols"] = [
+		{ wch: 12 }, { wch: 20 }, { wch: 32 }, { wch: 10 }, { wch: 70 },
+		{ wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 12 },
+		{ wch: 12 }, { wch: 14 }, { wch: 45 },
+	];
+	const summary = XLSX.utils.aoa_to_sheet([
+		["항목", "값", "비고", "작성일"],
+		...summaryRows,
+	]);
+	summary["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 48 }, { wch: 14 }];
+	const workbook = XLSX.utils.book_new();
+	XLSX.utils.book_append_sheet(workbook, detail, "경매목록");
+	XLSX.utils.book_append_sheet(workbook, summary, "요약");
+	return workbook;
 }
 
 async function writeOutputs(results, publish = false) {
@@ -306,30 +357,22 @@ async function writeOutputs(results, publish = false) {
 	await fs.mkdir(outputDir, { recursive: true });
 	await fs.writeFile(rawOutputPath, JSON.stringify(payload, null, 2));
 
-	const detailRows = rows.map(toHomeyRow);
-	const detailHeaders = [
-		"지역", "법원", "사건번호", "물건번호", "주소/건물", "면적㎡", "평",
-		"감정가_원", "최저가_원", "최저가율", "유찰", "매각기일", "비고",
-	];
-	const detail = XLSX.utils.json_to_sheet(detailRows, { header: detailHeaders });
-	detail["!autofilter"] = { ref: detail["!ref"] };
-	detail["!cols"] = [
-		{ wch: 12 }, { wch: 20 }, { wch: 32 }, { wch: 10 }, { wch: 70 },
-		{ wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 12 },
-		{ wch: 12 }, { wch: 14 }, { wch: 45 },
-	];
-	const summary = XLSX.utils.aoa_to_sheet([
-		["항목", "값", "비고", "작성일"],
+	const workbook = buildWorkbook(rows, [
 		["조회 지역", "서울특별시 + 성남시", "서울 25개 구, 성남 3개 구", isoDate(dotDate(nowInSeoul))],
 		["조회 기간", `${startDate} ~ ${endDate}`, "법원 사이트가 허용하는 rolling window", ""],
 		["필터", "지역만 적용", "가격·면적·물건종류 제한 없음", ""],
-		["총 물건 수", detailRows.length, "중복 제거 후", ""],
+		["총 물건 수", rows.length, "중복 제거 후", ""],
 	]);
-	summary["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 48 }, { wch: 14 }];
-	const workbook = XLSX.utils.book_new();
-	XLSX.utils.book_append_sheet(workbook, detail, "경매목록");
-	XLSX.utils.book_append_sheet(workbook, summary, "요약");
 	if (publish) {
+		const saleDates = dateRange(startDate, endDate).map((saleDate) => {
+			const saleRows = rows.filter((row) => isoDate(row.maeGiil) === saleDate);
+			return {
+				saleDate,
+				total: saleRows.length,
+				...countRegions(saleRows),
+				rows: saleRows,
+			};
+		});
 		const metadata = {
 			crawlDate,
 			collectedAt: payload.collectedAt,
@@ -337,6 +380,7 @@ async function writeOutputs(results, publish = false) {
 			queryEndDate: endDate,
 			total: rows.length,
 			...countRegions(rows),
+			saleDates: saleDates.map(({ rows: _rows, ...item }) => item),
 			failedLocations: results
 				.filter((result) => result.error)
 				.map((result) => ({ location: result.sigungu, error: result.error })),
@@ -345,12 +389,24 @@ async function writeOutputs(results, publish = false) {
 		const compressedRaw = await gzipAsync(rawJson, { level: 9 });
 		await fs.mkdir(archiveDir, { recursive: true });
 		await fs.mkdir(publicDataDir, { recursive: true });
+		await fs.rm(saleDateDir, { recursive: true, force: true });
+		await fs.mkdir(saleDateDir, { recursive: true });
 		XLSX.writeFile(workbook, archiveXlsxPath);
 		XLSX.writeFile(workbook, xlsxOutputPath);
+		for (const item of saleDates) {
+			const saleWorkbook = buildWorkbook(item.rows, [
+				["매각기일", item.saleDate, "해당 날짜에 예정된 물건", crawlDate],
+				["조회 지역", "서울특별시 + 성남시", "서울 25개 구, 성남 3개 구", ""],
+				["필터", "지역만 적용", "가격·면적·물건종류 제한 없음", ""],
+				["총 물건 수", item.total, "중복 제거 후", ""],
+			]);
+			XLSX.writeFile(saleWorkbook, path.join(saleDateDir, `${item.saleDate}.xlsx`));
+		}
 		await fs.writeFile(archiveRawPath, compressedRaw);
 		await fs.writeFile(latestRawPath, compressedRaw);
 		await fs.writeFile(archiveMetadataPath, JSON.stringify(metadata, null, 2));
 		await fs.writeFile(latestMetadataPath, JSON.stringify(metadata, null, 2));
+		await fs.writeFile(saleDateIndexPath, JSON.stringify(metadata.saleDates, null, 2));
 		await updateReadme(metadata);
 	}
 	return rows.length;
