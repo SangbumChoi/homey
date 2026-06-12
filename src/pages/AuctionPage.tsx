@@ -218,6 +218,13 @@ export function AuctionTab({
 	const [includePast, setIncludePast] = useState(false);
 	const [sort, setSort] = useState<SortKey>("saleDate");
 
+	/* 실데이터 1,900여 건을 한 번에 그리지 않도록 50건씩 보여줘요 */
+	const PAGE = 50;
+	const [visibleCount, setVisibleCount] = useState(PAGE);
+	useEffect(() => {
+		setVisibleCount(PAGE);
+	}, [region, selectedCourts, priceRange, areaRange, failFilter, excludeShare, includePast, sort]);
+
 	/* 시트 상태 */
 	const [sheet, setSheet] = useState<SheetKind>(null);
 	const [detail, setDetail] = useState<AuctionItem | null>(null);
@@ -574,19 +581,41 @@ export function AuctionTab({
 						</div>
 					</div>
 				) : (
-					filtered.map((item) => {
-						const key = auctionKey(item);
-						return (
-							<AuctionRow
-								key={key}
-								item={item}
-								areaUnit={areaUnit}
-								fav={favorites.includes(key)}
-								onToggleFav={() => toggleFavorite(key)}
-								onClick={() => setDetail(item)}
-							/>
-						);
-					})
+					<>
+						{filtered.slice(0, visibleCount).map((item) => {
+							const key = auctionKey(item);
+							return (
+								<AuctionRow
+									key={key}
+									item={item}
+									areaUnit={areaUnit}
+									fav={favorites.includes(key)}
+									onToggleFav={() => toggleFavorite(key)}
+									onClick={() => setDetail(item)}
+								/>
+							);
+						})}
+						{filtered.length > visibleCount && (
+							<div style={{ padding: "16px 20px 4px" }}>
+								<button
+									className="nb nb-press"
+									onClick={() => setVisibleCount((c) => c + PAGE)}
+									style={{
+										width: "100%",
+										padding: "13px 0",
+										borderRadius: 12,
+										backgroundColor: "#fff",
+										color: "#111",
+										fontSize: 14,
+										fontWeight: 900,
+										cursor: "pointer",
+									}}
+								>
+									더 보기 ({(filtered.length - visibleCount).toLocaleString()}건 남음)
+								</button>
+							</div>
+						)}
+					</>
 				)}
 
 				{lastUploadAt && (
