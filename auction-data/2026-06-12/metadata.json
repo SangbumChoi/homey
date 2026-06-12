@@ -1,0 +1,15 @@
+{
+  "crawlDate": "2026-06-12",
+  "collectedAt": "2026-06-12T11:20:01.621Z",
+  "queryStartDate": "2026.06.12",
+  "queryEndDate": "2026.06.26",
+  "total": 1910,
+  "seoul": 1857,
+  "seongnam": 53,
+  "seongnamDistricts": {
+    "성남시 분당구": 22,
+    "성남시 중원구": 22,
+    "성남시 수정구": 9
+  },
+  "failedLocations": []
+}
