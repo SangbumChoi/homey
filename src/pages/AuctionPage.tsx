@@ -10,6 +10,7 @@ import {
 } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import { fetchRemoteAuctionData } from "../services/remoteAuctionData";
+import { HouseIcon, PencilIcon } from "../components/icons";
 import type { AuctionItem } from "../types";
 
 /** 대시보드 빠른 필터에서 전달받는 필터 프리셋 */
@@ -472,7 +473,6 @@ export function AuctionTab({
 							fontWeight: 700,
 						}}
 					>
-						{uploadMsg.error ? "⚠️ " : "✅ "}
 						{uploadMsg.text}
 					</div>
 				)}
@@ -572,7 +572,7 @@ export function AuctionTab({
 							color: "#8C8576",
 						}}
 					>
-						<div style={{ fontSize: 40, marginBottom: 10 }}>🏚️</div>
+						<div style={{ marginBottom: 12 }}><HouseIcon size={36} color="#8C8576" /></div>
 						<div style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>
 							조건에 맞는 물건이 없어요
 						</div>
@@ -1110,7 +1110,7 @@ export function DetailSheet({
 										cursor: "pointer",
 									}}
 								>
-									📝 임장·입찰 기록
+									<PencilIcon /> 임장·입찰 기록
 								</button>
 							)}
 						</div>
@@ -1165,7 +1165,8 @@ export function DetailSheet({
 								lineHeight: 1.6,
 							}}
 						>
-							📌 {item.note}
+							<strong style={{ marginRight: 6 }}>비고</strong>
+						{item.note}
 						</div>
 					)}
 				</div>

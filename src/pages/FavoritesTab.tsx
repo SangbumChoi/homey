@@ -9,6 +9,7 @@ import {
 	displayName,
 	shortCourt,
 } from "./AuctionPage";
+import { StarIcon } from "../components/icons";
 import type { AuctionItem } from "../types";
 
 /** 관심 물건 탭 — 찜한 물건을 모아 보고 나란히 비교해요 */
@@ -52,7 +53,7 @@ export function FavoritesTab({ goAuction }: { goAuction?: () => void }) {
 						color: "#8C8576",
 					}}
 				>
-					<div style={{ fontSize: 40, marginBottom: 12 }}>⭐</div>
+					<div style={{ marginBottom: 14 }}><StarIcon size={36} color="#8C8576" /></div>
 					<div style={{ fontSize: 15, fontWeight: 700, color: "#555" }}>
 						아직 담은 물건이 없어요
 					</div>

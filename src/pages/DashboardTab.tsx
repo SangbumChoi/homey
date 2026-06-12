@@ -11,6 +11,16 @@ import {
 	todayStr,
 	type AuctionPreset,
 } from "./AuctionPage";
+import {
+	AreaIcon,
+	BoltIcon,
+	CalendarIcon,
+	ChartIcon,
+	SparkleIcon,
+	StarIcon,
+	TagIcon,
+	TrendDownIcon,
+} from "../components/icons";
 import type { AuctionItem } from "../types";
 
 interface Props {
@@ -20,11 +30,23 @@ interface Props {
 	goFavorites: () => void;
 }
 
-const QUICK_FILTERS: { label: string; preset: AuctionPreset }[] = [
-	{ label: "🆕 신건만", preset: { failFilter: "new" } },
-	{ label: "📉 유찰 물건", preset: { failFilter: "failed" } },
-	{ label: "💰 6억 이하", preset: { priceRange: [null, 6] } },
-	{ label: "📐 25~35평", preset: { areaRange: [25, 35] } },
+const QUICK_FILTERS: {
+	label: string;
+	icon: React.ReactNode;
+	preset: AuctionPreset;
+}[] = [
+	{ label: "신건만", icon: <SparkleIcon />, preset: { failFilter: "new" } },
+	{
+		label: "유찰 물건",
+		icon: <TrendDownIcon />,
+		preset: { failFilter: "failed" },
+	},
+	{ label: "6억 이하", icon: <TagIcon />, preset: { priceRange: [null, 6] } },
+	{
+		label: "25~35평",
+		icon: <AreaIcon />,
+		preset: { areaRange: [25, 35] },
+	},
 ];
 
 /** "2026-06-08" → "6월 8일" */
@@ -110,7 +132,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 						marginTop: 12,
 					}}
 				>
-					오늘의 경매 ⚡
+					오늘의 경매 <BoltIcon size={24} />
 				</div>
 			</div>
 
@@ -144,12 +166,15 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 					animationDelay: "0.04s",
 				}}
 			>
-				{QUICK_FILTERS.map(({ label, preset }) => (
+				{QUICK_FILTERS.map(({ label, icon, preset }) => (
 					<button
 						key={label}
 						className="touchable"
 						onClick={() => goAuction(preset)}
 						style={{
+							display: "inline-flex",
+							alignItems: "center",
+							gap: 6,
 							padding: "8px 12px",
 							borderRadius: 18,
 							border: "2px solid #111",
@@ -162,6 +187,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 							flexShrink: 0,
 						}}
 					>
+						{icon}
 						{label}
 					</button>
 				))}
@@ -184,13 +210,13 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 			>
 				{favorites.length === 0 ? (
 					<EmptyCard
-						emoji="⭐"
+						icon={<StarIcon size={30} />}
 						text={"경매 탭에서 별표로 담아두면\n기일이 다가올 때 여기에 보여요"}
 						actionLabel="물건 보러 가기"
 						onAction={() => goAuction()}
 					/>
 				) : favSoon.length === 0 ? (
-					<EmptyCard emoji="🗓️" text="관심 물건의 매각기일이 모두 지났어요" />
+					<EmptyCard icon={<CalendarIcon size={30} />} text="관심 물건의 매각기일이 모두 지났어요" />
 				) : (
 					<RowCard>
 						{favSoon.map((item, idx) => (
@@ -238,7 +264,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 			<Section delay={0.14} title="최저가 하락">
 				{priceDrops.length === 0 ? (
 					<EmptyCard
-						emoji="📊"
+						icon={<ChartIcon size={30} />}
 						text={"새 엑셀을 업로드하면 유찰로\n최저가가 내려간 물건을 알려드려요"}
 					/>
 				) : (
@@ -434,12 +460,12 @@ function RowCard({ children }: { children: React.ReactNode }) {
 }
 
 function EmptyCard({
-	emoji,
+	icon,
 	text,
 	actionLabel,
 	onAction,
 }: {
-	emoji: string;
+	icon: React.ReactNode;
 	text: string;
 	actionLabel?: string;
 	onAction?: () => void;
@@ -454,7 +480,7 @@ function EmptyCard({
 				textAlign: "center",
 			}}
 		>
-			<div style={{ fontSize: 28, marginBottom: 8 }}>{emoji}</div>
+			<div style={{ marginBottom: 10 }}>{icon}</div>
 			<div
 				style={{
 					fontSize: 13,
@@ -501,7 +527,7 @@ function SaleDateChart({ items }: { items: AuctionItem[] }) {
 	}, [items]);
 
 	if (bars.length === 0) {
-		return <EmptyCard emoji="🗓️" text="진행 중인 매각기일이 없어요" />;
+		return <EmptyCard icon={<CalendarIcon size={30} />} text="진행 중인 매각기일이 없어요" />;
 	}
 
 	const max = Math.max(...bars.map(([, n]) => n));
@@ -568,8 +594,26 @@ function SaleDateChart({ items }: { items: AuctionItem[] }) {
 					textAlign: "right",
 				}}
 			>
-				🔴 7일 이내 · 🟡 14일 이내 · 🟢 그 이후
+				<Swatch color="#FF6B6B" /> 7일 이내 · <Swatch color="#FFD43B" /> 14일
+				이내 · <Swatch color="#B6F09C" /> 그 이후
 			</div>
 		</div>
+	);
+}
+
+/** 범례용 색 견본 — 검정 테두리의 작은 사각형이에요 */
+function Swatch({ color }: { color: string }) {
+	return (
+		<span
+			style={{
+				display: "inline-block",
+				width: 9,
+				height: 9,
+				backgroundColor: color,
+				border: "1.5px solid #111",
+				borderRadius: 3,
+				verticalAlign: "-1px",
+			}}
+		/>
 	);
 }
