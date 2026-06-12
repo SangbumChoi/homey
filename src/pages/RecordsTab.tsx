@@ -3,6 +3,7 @@ import { useAuctionStore } from "../store/useAuctionStore";
 import { auctionKey, formatKRW } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import { DetailSheet, rowTitle } from "./AuctionPage";
+import { PencilIcon } from "../components/icons";
 import type { AuctionItem, AuctionRecord } from "../types";
 
 const RESULT_BADGE: Record<
@@ -75,7 +76,7 @@ export function RecordsTab() {
 						color: "#8C8576",
 					}}
 				>
-					<div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
+					<div style={{ marginBottom: 14 }}><PencilIcon size={36} color="#8C8576" /></div>
 					<div style={{ fontSize: 15, fontWeight: 700, color: "#555" }}>
 						아직 기록이 없어요
 					</div>
