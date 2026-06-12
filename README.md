@@ -137,6 +137,7 @@ npm run crawl:auctions
 진행 상황은 로컬 체크포인트 `data/auction-crawl/latest.json`에도 남아요.
 테스트할 때는 `CRAWL_TARGET_LIMIT=1 npm run crawl:auctions`로 한 지역만 조회할 수 있어요.
 법원 사이트의 화면 구조나 접근 정책이 바뀌면 자동 수집도 함께 조정해야 해요.
+수집 방식과 유지보수 절차는 [`docs/skills/court-auction-crawling.md`](docs/skills/court-auction-crawling.md)에 정리되어 있어요.
 
 ### 공개 다운로드
 
