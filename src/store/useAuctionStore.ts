@@ -35,7 +35,18 @@ interface AuctionState {
 	reset: () => void;
 }
 
-const seedItems = seed.items as AuctionItem[];
+/** 같은 사건번호+물건번호 중복을 제거해요 (첫 행 유지) — 키가 겹치면 리스트 렌더링이 깨져요 */
+function dedupeByKey(items: AuctionItem[]): AuctionItem[] {
+	const seen = new Set<string>();
+	return items.filter((i) => {
+		const key = auctionKey(i);
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
+
+const seedItems = dedupeByKey(seed.items as AuctionItem[]);
 
 function mergeItems(
 	existing: AuctionItem[],
@@ -132,7 +143,8 @@ export const useAuctionStore = create<AuctionState>()(
 				}),
 		}),
 		{
-			name: "homey-auction",
+			// v2: 목업 시드 → 실데이터 전환 시점에 키를 올려 옛 상태를 버려요
+			name: "homey-auction-v2",
 			merge: (persisted, current) => {
 				const p = persisted as Partial<AuctionState> | undefined;
 				if (!p?.items) return current;

@@ -4,6 +4,7 @@ import { auctionKey, formatKRW } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import {
 	DdayPill,
+	dDayLabel,
 	DetailSheet,
 	displayName,
 	rowTitle,
@@ -165,6 +166,11 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 					</button>
 				))}
 			</div>
+
+			{/* ── 매각기일 분포 ── */}
+			<Section delay={0.06} title="매각기일 분포">
+				<SaleDateChart items={upcoming} />
+			</Section>
 
 			{/* ── 관심 물건 기일 ── */}
 			<Section
@@ -477,6 +483,93 @@ function EmptyCard({
 					{actionLabel}
 				</button>
 			)}
+		</div>
+	);
+}
+
+/* ────────────────── 매각기일 분포 차트 ────────────────── */
+/** 진행 물건을 기일별로 묶어 막대로 보여줘요 — 색은 임박도예요 */
+function SaleDateChart({ items }: { items: AuctionItem[] }) {
+	const bars = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const i of items) {
+			counts.set(i.saleDate, (counts.get(i.saleDate) ?? 0) + 1);
+		}
+		return [...counts.entries()]
+			.sort(([a], [b]) => a.localeCompare(b))
+			.slice(0, 8);
+	}, [items]);
+
+	if (bars.length === 0) {
+		return <EmptyCard emoji="🗓️" text="진행 중인 매각기일이 없어요" />;
+	}
+
+	const max = Math.max(...bars.map(([, n]) => n));
+	const barColor = (date: string) => {
+		const level = dDayLabel(date).level;
+		if (level === "urgent") return "#FF6B6B";
+		if (level === "soon") return "#FFD43B";
+		return "#B6F09C";
+	};
+
+	return (
+		<div
+			style={{
+				backgroundColor: "#fff",
+				border: "2px solid #111",
+				borderRadius: 14,
+				padding: "16px 14px 12px",
+			}}
+		>
+			<div
+				style={{
+					display: "flex",
+					alignItems: "flex-end",
+					gap: 8,
+					height: 112,
+				}}
+			>
+				{bars.map(([date, n]) => (
+					<div
+						key={date}
+						style={{
+							flex: 1,
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							justifyContent: "flex-end",
+							gap: 4,
+							minWidth: 0,
+						}}
+					>
+						<span style={{ fontSize: 10, fontWeight: 800, color: "#111" }}>
+							{n}
+						</span>
+						<div
+							style={{
+								width: "100%",
+								height: Math.max(5, (n / max) * 64),
+								backgroundColor: barColor(date),
+								border: "2px solid #111",
+								borderRadius: 6,
+							}}
+						/>
+						<span style={{ fontSize: 10, color: "#555", whiteSpace: "nowrap" }}>
+							{Number(date.slice(5, 7))}.{Number(date.slice(8, 10))}
+						</span>
+					</div>
+				))}
+			</div>
+			<div
+				style={{
+					fontSize: 10,
+					color: "#8C8576",
+					marginTop: 8,
+					textAlign: "right",
+				}}
+			>
+				🔴 7일 이내 · 🟡 14일 이내 · 🟢 그 이후
+			</div>
 		</div>
 	);
 }
