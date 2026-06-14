@@ -1,13 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BottomSheet, TextButton } from "@toss/tds-mobile";
 import { colors } from "@toss/tds-colors";
 import { useAuctionStore } from "../store/useAuctionStore";
-import {
-	auctionKey,
-	parseAuctionXlsx,
-	formatKRW,
-	pricePerPyeong,
-} from "../utils/auctionXlsx";
+import { auctionKey, formatKRW, pricePerPyeong } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import { fetchRemoteAuctionData } from "../services/remoteAuctionData";
 import {
@@ -251,9 +246,7 @@ export function AuctionTab({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [preset]);
 
-	/* 업로드 */
-	const fileRef = useRef<HTMLInputElement>(null);
-	const [uploading, setUploading] = useState(false);
+	/* 원격 동기화 */
 	const [syncing, setSyncing] = useState(false);
 	const [uploadMsg, setUploadMsg] = useState<{
 		text: string;
@@ -285,30 +278,6 @@ export function AuctionTab({
 			});
 		} finally {
 			setSyncing(false);
-		}
-	};
-
-	const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		e.target.value = "";
-		if (!file) return;
-		setUploading(true);
-		setUploadMsg(null);
-		try {
-			const buffer = await file.arrayBuffer();
-			const { items: parsed, dataDate: parsedDate } =
-				await parseAuctionXlsx(buffer);
-			const { added, updated } = importItems(parsed, parsedDate);
-			setUploadMsg({
-				text: `업로드 완료 — 신규 ${added}건, 갱신 ${updated}건이에요`,
-			});
-		} catch (err) {
-			setUploadMsg({
-				text: err instanceof Error ? err.message : "파일을 읽지 못했어요",
-				error: true,
-			});
-		} finally {
-			setUploading(false);
 		}
 	};
 
@@ -443,30 +412,6 @@ export function AuctionTab({
 							</button>
 						</div>
 					</div>
-					<input
-						ref={fileRef}
-						type="file"
-						accept=".xlsx,.xls"
-						style={{ display: "none" }}
-						onChange={handleUpload}
-					/>
-					<button
-						className="nb nb-press"
-						disabled={uploading}
-						onClick={() => fileRef.current?.click()}
-						style={{
-							borderRadius: 10,
-							padding: "8px 12px",
-							fontSize: 12,
-							fontWeight: 900,
-							backgroundColor: "#FFD43B",
-							color: "#111",
-							cursor: "pointer",
-							flexShrink: 0,
-						}}
-					>
-						{uploading ? "읽는 중…" : "엑셀 업로드"}
-					</button>
 				</div>
 
 				{uploadMsg && (
@@ -633,13 +578,11 @@ export function AuctionTab({
 							size="xsmall"
 							color={colors.grey500}
 							onClick={() => {
-								if (
-									confirm("업로드한 데이터를 지우고 기본 데이터로 되돌릴까요?")
-								)
+								if (confirm("데이터를 앱에 포함된 기본본으로 되돌릴까요?"))
 									reset();
 							}}
 						>
-							업로드 데이터 초기화
+							데이터 초기화
 						</TextButton>
 					</div>
 				)}

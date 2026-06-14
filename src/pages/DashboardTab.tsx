@@ -59,8 +59,7 @@ function fmtKoreanDate(iso: string | null): string {
 
 /** 홈 대시보드 — 이번 주에 봐야 할 것들을 모아 보여줘요 */
 export function DashboardTab({ goAuction, goFavorites }: Props) {
-	const { items, dataDate, favorites, toggleFavorite, prevPrices } =
-		useAuctionStore();
+	const { items, favorites, toggleFavorite, prevPrices } = useAuctionStore();
 	const [detail, setDetail] = useState<AuctionItem | null>(null);
 	const [recordItem, setRecordItem] = useState<AuctionItem | null>(null);
 
@@ -122,7 +121,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 						transform: "rotate(-2deg)",
 					}}
 				>
-					{fmtKoreanDate(dataDate)} 기준
+					오늘 {fmtKoreanDate(today)}
 				</div>
 				<div
 					style={{
