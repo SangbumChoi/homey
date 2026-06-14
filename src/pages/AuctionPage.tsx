@@ -10,6 +10,15 @@ import {
 } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import { fetchRemoteAuctionData } from "../services/remoteAuctionData";
+import {
+	trackConditionFilter,
+	trackCourtFilter,
+	trackListingDwell,
+	trackListingOpen,
+	trackRangeFilter,
+	trackRegionFilter,
+	trackSort,
+} from "../services/analytics";
 import { HouseIcon, PencilIcon } from "../components/icons";
 import type { AuctionItem } from "../types";
 
@@ -647,6 +656,7 @@ export function AuctionTab({
 					selected={region === null}
 					onClick={() => {
 						setRegion(null);
+						trackRegionFilter(null);
 						closeSheet();
 					}}
 				/>
@@ -657,6 +667,7 @@ export function AuctionTab({
 						selected={region === r}
 						onClick={() => {
 							setRegion(r);
+							trackRegionFilter(r);
 							closeSheet();
 						}}
 					/>
@@ -673,7 +684,16 @@ export function AuctionTab({
 						여러 법원을 함께 선택할 수 있어요
 					</BottomSheet.HeaderDescription>
 				}
-				cta={<BottomSheet.CTA onClick={closeSheet}>확인</BottomSheet.CTA>}
+				cta={
+					<BottomSheet.CTA
+						onClick={() => {
+							trackCourtFilter(selectedCourts);
+							closeSheet();
+						}}
+					>
+						확인
+					</BottomSheet.CTA>
+				}
 			>
 				<SheetOption
 					label="전체"
@@ -705,6 +725,7 @@ export function AuctionTab({
 				value={priceRange}
 				onApply={(range) => {
 					setPriceRange(range);
+					trackRangeFilter("price", range);
 					closeSheet();
 				}}
 				onClose={closeSheet}
@@ -719,6 +740,7 @@ export function AuctionTab({
 				value={areaRange}
 				onApply={(range) => {
 					setAreaRange(range);
+					trackRangeFilter("area", range);
 					closeSheet();
 				}}
 				onClose={closeSheet}
@@ -791,7 +813,10 @@ export function AuctionTab({
 						key={key}
 						label={label}
 						selected={failFilter === key}
-						onClick={() => setFailFilter(key)}
+						onClick={() => {
+							setFailFilter(key);
+							trackConditionFilter("fail", key);
+						}}
 					/>
 				))}
 				<div
@@ -810,13 +835,19 @@ export function AuctionTab({
 					label="지분매각 제외"
 					description="일부 지분만 매각하는 물건을 빼고 봐요"
 					on={excludeShare}
-					onToggle={() => setExcludeShare(!excludeShare)}
+					onToggle={() => {
+						setExcludeShare(!excludeShare);
+						trackConditionFilter("exclude_share", !excludeShare);
+					}}
 				/>
 				<SheetToggle
 					label="지난 기일 포함"
 					description="매각기일이 지난 물건도 함께 봐요"
 					on={includePast}
-					onToggle={() => setIncludePast(!includePast)}
+					onToggle={() => {
+						setIncludePast(!includePast);
+						trackConditionFilter("include_past", !includePast);
+					}}
 				/>
 			</BottomSheet>
 
@@ -833,6 +864,7 @@ export function AuctionTab({
 						selected={sort === key}
 						onClick={() => {
 							setSort(key);
+							trackSort(key);
 							closeSheet();
 						}}
 					/>
@@ -841,6 +873,7 @@ export function AuctionTab({
 
 			{/* ── 상세 시트 ── */}
 			<DetailSheet
+				source="auction"
 				item={detail}
 				fav={detail ? favorites.includes(auctionKey(detail)) : false}
 				onToggleFav={() => detail && toggleFavorite(auctionKey(detail))}
@@ -1013,18 +1046,29 @@ export function AuctionRow({
 export function DetailSheet({
 	item,
 	fav,
+	source = "list",
 	onToggleFav,
 	onWriteRecord,
 	onClose,
 }: {
 	item: AuctionItem | null;
 	fav?: boolean;
+	/** 어디서 열렸는지 — list(경매) / favorites / dashboard */
+	source?: string;
 	onToggleFav?: () => void;
 	onWriteRecord?: () => void;
 	onClose: () => void;
 }) {
 	const dday = item ? dDayLabel(item.saleDate) : null;
 	const isShare = item?.note?.includes("지분") ?? false;
+
+	/* 상세 열람·체류 로깅 — 3개 호출처를 한 곳에서 처리해요 */
+	useEffect(() => {
+		if (!item) return;
+		trackListingOpen(item, source);
+		const start = Date.now();
+		return () => trackListingDwell(item, Date.now() - start);
+	}, [item, source]);
 
 	return (
 		<BottomSheet

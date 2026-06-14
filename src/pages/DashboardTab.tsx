@@ -21,6 +21,7 @@ import {
 	TagIcon,
 	TrendDownIcon,
 } from "../components/icons";
+import { trackQuickFilter } from "../services/analytics";
 import type { AuctionItem } from "../types";
 
 interface Props {
@@ -170,7 +171,10 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 					<button
 						key={label}
 						className="touchable"
-						onClick={() => goAuction(preset)}
+						onClick={() => {
+							trackQuickFilter(label);
+							goAuction(preset);
+						}}
 						style={{
 							display: "inline-flex",
 							alignItems: "center",
@@ -333,6 +337,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 			<div style={{ height: 28 }} />
 
 			<DetailSheet
+				source="dashboard"
 				item={detail}
 				fav={detail ? favorites.includes(auctionKey(detail)) : false}
 				onToggleFav={() => detail && toggleFavorite(auctionKey(detail))}

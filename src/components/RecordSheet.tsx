@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BottomSheet } from "@toss/tds-mobile";
 import { useAuctionStore } from "../store/useAuctionStore";
 import { formatKRW } from "../utils/auctionXlsx";
+import { trackRecordSave } from "../services/analytics";
 import type { AuctionRecord } from "../types";
 
 interface Props {
@@ -53,6 +54,7 @@ export function RecordSheet({ itemKey, address, onClose }: Props) {
 			addressSnapshot: address,
 			updatedAt: new Date().toISOString(),
 		});
+		trackRecordSave(result, manToWon(bid) !== null);
 		onClose();
 	};
 
