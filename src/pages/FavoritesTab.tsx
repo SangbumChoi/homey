@@ -141,6 +141,7 @@ export function FavoritesTab({ goAuction }: { goAuction?: () => void }) {
 			)}
 
 			<DetailSheet
+				source="favorites"
 				item={detail}
 				fav={detail ? favorites.includes(auctionKey(detail)) : false}
 				onToggleFav={() => detail && toggleFavorite(auctionKey(detail))}

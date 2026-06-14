@@ -218,6 +218,7 @@ export function RecordsTab() {
 				onClose={() => setEditKey(null)}
 			/>
 			<DetailSheet
+				source="records"
 				item={detail}
 				fav={detail ? favorites.includes(auctionKey(detail)) : false}
 				onToggleFav={() => detail && toggleFavorite(auctionKey(detail))}

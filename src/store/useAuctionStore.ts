@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AuctionItem, AuctionRecord } from "../types";
 import { auctionKey } from "../utils/auctionXlsx";
+import { trackFavorite } from "../services/analytics";
 import seed from "../data/auctionSeed.json";
 
 interface ImportResult {
@@ -117,11 +118,16 @@ export const useAuctionStore = create<AuctionState>()(
 			},
 
 			toggleFavorite: (key) =>
-				set((s) => ({
-					favorites: s.favorites.includes(key)
-						? s.favorites.filter((k) => k !== key)
-						: [...s.favorites, key],
-				})),
+				set((s) => {
+					const on = !s.favorites.includes(key);
+					const item = s.items.find((i) => auctionKey(i) === key);
+					if (item) trackFavorite(item, on);
+					return {
+						favorites: on
+							? [...s.favorites, key]
+							: s.favorites.filter((k) => k !== key),
+					};
+				}),
 
 			saveRecord: (key, record) =>
 				set((s) => ({ records: { ...s.records, [key]: record } })),

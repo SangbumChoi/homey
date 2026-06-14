@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuctionStore } from "../store/useAuctionStore";
 import { fetchRemoteAuctionData } from "../services/remoteAuctionData";
+import { trackScreen, trackScreenDwell } from "../services/analytics";
 import { AuctionTab, type AuctionPreset } from "./AuctionPage";
 import { DashboardTab } from "./DashboardTab";
 import { FavoritesTab } from "./FavoritesTab";
@@ -22,6 +23,13 @@ export function HomePage({ activeTab }: Props) {
 		setAuctionPreset(preset ?? null);
 		setTab("auction");
 	};
+
+	/* 탭 진입/체류 시간 로깅 — "어느 화면에 얼마나 머무는가" */
+	useEffect(() => {
+		trackScreen(tab);
+		const start = Date.now();
+		return () => trackScreenDwell(tab, Date.now() - start);
+	}, [tab]);
 
 	/* 앱을 열 때 원격 저장소의 새 주간 엑셀을 확인해요 (6시간에 1번) */
 	useEffect(() => {
