@@ -10,7 +10,8 @@
 		"crawl:auctions": "node scripts/crawl-court-auctions.mjs",
 		"lint": "eslint .",
 		"format": "prettier --write .",
-		"data:seed": "node scripts/xlsx-to-seed.mjs"
+		"data:seed": "node scripts/xlsx-to-seed.mjs",
+		"data:raw-xlsx": "node scripts/raw-to-xlsx.mjs"
 	},
 	"dependencies": {
 		"@apps-in-toss/web-framework": "^2.4.5",

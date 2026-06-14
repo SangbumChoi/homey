@@ -1,0 +1,56 @@
+name: Crawl court auctions
+
+# 매일 법원경매를 크롤해 auction-data/(by-sale-date 캐시)에 변경분만 커밋해요.
+# 주의: GitHub 러너가 courtauction.go.kr에 지오 차단되면 crawl 단계가 실패해요.
+#       그 경우 본인 맥에서 로컬 cron으로 돌리세요 (.claude/skills/auction-crawl 참고).
+
+on:
+  schedule:
+    # 매일 21:10 UTC = 06:10 KST (그날치 새 매각기일이 열린 뒤)
+    - cron: "10 21 * * *"
+  workflow_dispatch: # 수동 실행
+
+permissions:
+  contents: write
+
+concurrency:
+  group: crawl-auctions
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Point CHROME_PATH at Playwright Chromium
+        run: |
+          echo "CHROME_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")" >> "$GITHUB_ENV"
+
+      - name: Crawl and publish
+        env:
+          HEADLESS: "true"
+        run: npm run crawl:auctions
+
+      - name: Commit changed auction data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- auction-data; then
+            echo "변경 없음 (모두 캐시 히트) — 커밋 생략"
+            exit 0
+          fi
+          git add auction-data
+          git commit -m "데이터: 법원경매 자동 갱신 ($(date -u +%Y-%m-%d)) [skip ci]"
+          git push
