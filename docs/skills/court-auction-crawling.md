@@ -274,3 +274,26 @@ response.
 Treat the website UI and response schema as external contracts that can change.
 Prefer small selector/schema repairs, retain the sequential district workflow,
 and always fail closed rather than publishing an incomplete dataset.
+
+## Shared Mapping & Offline Excel Rebuild
+
+The row→Excel mapping (`toHomeyRow`, `buildAddress`, `areaFromRow`, `buildWorkbook`,
+etc.) lives in `scripts/lib/court-rows.mjs` and is shared by both the live crawler
+and the offline rebuilder, so the Excel format never drifts.
+
+If you cannot run the live crawl (e.g. no Korean network or no local Chrome), you
+can rebuild the exact Excel from a previously captured raw response:
+
+```bash
+# raw.json.gz (or latest.json.gz) → Excel in 경매목록 + 요약 format
+npm run data:raw-xlsx -- auction-data/2026-06-12/raw.json.gz out.xlsx
+```
+
+The live crawl must run where a real Chrome and Korean network are available
+(typically your own machine), because the court site blocks datacenter/non-KR
+networks and needs a real browser session:
+
+```bash
+# on your Mac — uses your installed Google Chrome
+npm run crawl:auctions          # HEADLESS=false to watch it
+```

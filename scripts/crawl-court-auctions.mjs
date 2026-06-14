@@ -5,6 +5,14 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { chromium } from "playwright";
 import * as XLSX from "xlsx";
+import {
+	buildWorkbook,
+	countRegions,
+	dateRange,
+	dotDate,
+	isoDate,
+	rowKey,
+} from "./lib/court-rows.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const gzipAsync = promisify(gzip);
@@ -42,33 +50,6 @@ const nowInSeoul = new Date(
 const endInSeoul = new Date(nowInSeoul);
 endInSeoul.setDate(endInSeoul.getDate() + 14);
 
-function dotDate(date) {
-	return [
-		date.getFullYear(),
-		String(date.getMonth() + 1).padStart(2, "0"),
-		String(date.getDate()).padStart(2, "0"),
-	].join(".");
-}
-
-function isoDate(value) {
-	const digits = String(value || "").replace(/\D/g, "");
-	if (digits.length !== 8) return String(value || "");
-	return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
-}
-
-function dateRange(start, end) {
-	const dates = [];
-	const [startYear, startMonth, startDay] = isoDate(start).split("-").map(Number);
-	const [endYear, endMonth, endDay] = isoDate(end).split("-").map(Number);
-	const cursor = new Date(Date.UTC(startYear, startMonth - 1, startDay));
-	const last = new Date(Date.UTC(endYear, endMonth - 1, endDay));
-	while (cursor <= last) {
-		dates.push(cursor.toISOString().slice(0, 10));
-		cursor.setUTCDate(cursor.getUTCDate() + 1);
-	}
-	return dates;
-}
-
 const startDate = process.env.AUCTION_START_DATE || dotDate(nowInSeoul);
 const endDate = process.env.AUCTION_END_DATE || dotDate(endInSeoul);
 const crawlDate = isoDate(dotDate(nowInSeoul));
@@ -105,10 +86,6 @@ async function fillInput(page, id, value) {
 		element.dispatchEvent(new Event("input", { bubbles: true }));
 		element.dispatchEvent(new Event("change", { bubbles: true }));
 	});
-}
-
-function rowKey(row) {
-	return row.docid || `${row.jiwonNm}|${row.srnSaNo}|${row.maemulSer}`;
 }
 
 async function waitForSearchResponse(page, action) {
@@ -196,67 +173,6 @@ async function crawlTarget(target) {
 	}
 }
 
-function areaFromRow(row) {
-	const text = [row.areaList, row.pjbBuldList, row.convAddr].filter(Boolean).join(" ");
-	const match = text.replaceAll(",", "").match(/(\d+(?:\.\d+)?)\s*㎡/);
-	return match ? Number(match[1]) : 0;
-}
-
-function buildAddress(row) {
-	const lot = [row.hjguSido, row.hjguSigu, row.hjguDong, row.srchHjguLotno]
-		.filter(Boolean)
-		.join(" ");
-	const road = [row.rd1Nm, row.rd2Nm, row.rdNm, row.buldNo]
-		.filter(Boolean)
-		.join(" ");
-	const base =
-		row.addrGbncd === "R" && road
-			? `${road} ${row.rdAddrSub || ""}`.trim()
-			: [lot, row.buldNm].filter(Boolean).join(" ");
-	return [base, row.buldList].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-}
-
-function regionFor(row) {
-	if (row.hjguSido === "서울특별시") return "서울";
-	const district = String(row.hjguSigu || "").replace("성남시 ", "");
-	return district ? `성남 ${district}` : "성남";
-}
-
-function toHomeyRow(row) {
-	const area = areaFromRow(row);
-	const appraisal = Number(row.gamevalAmt || 0);
-	const minPrice = Number(row.minmaePrice || 0);
-	const failCount = Number(row.yuchalCnt || 0);
-	return {
-		지역: regionFor(row),
-		법원: row.jiwonNm || "",
-		사건번호: `${row.jiwonNm || ""} ${row.srnSaNo || ""}`.trim(),
-		물건번호: String(row.maemulSer || "1"),
-		"주소/건물": buildAddress(row),
-		"면적㎡": area,
-		평: area ? Math.round((area / 3.305785) * 10) / 10 : 0,
-		감정가_원: appraisal,
-		최저가_원: minPrice,
-		최저가율: appraisal ? Math.round((minPrice / appraisal) * 1000) / 10 : 0,
-		유찰: failCount ? `유찰 ${failCount}회` : "신건",
-		매각기일: isoDate(row.maeGiil),
-		비고: row.mulBigo || "",
-	};
-}
-
-function countRegions(rows) {
-	const counts = { seoul: 0, seongnam: 0, seongnamDistricts: {} };
-	for (const row of rows) {
-		if (row.hjguSido === "서울특별시") counts.seoul += 1;
-		if (row.hjguSido === "경기도" && String(row.hjguSigu).startsWith("성남시")) {
-			counts.seongnam += 1;
-			counts.seongnamDistricts[row.hjguSigu] =
-				(counts.seongnamDistricts[row.hjguSigu] || 0) + 1;
-		}
-	}
-	return counts;
-}
-
 async function updateReadme(metadata) {
 	const readmePath = path.join(root, "README.md");
 	const startMarker = "<!-- AUCTION-DOWNLOADS:START -->";
@@ -304,32 +220,6 @@ async function updateReadme(metadata) {
 		? readme.replace(markerPattern, section)
 		: `${readme.trimEnd()}\n\n---\n\n${section}\n`;
 	await fs.writeFile(readmePath, next);
-}
-
-const detailHeaders = [
-	"지역", "법원", "사건번호", "물건번호", "주소/건물", "면적㎡", "평",
-	"감정가_원", "최저가_원", "최저가율", "유찰", "매각기일", "비고",
-];
-
-function buildWorkbook(rows, summaryRows) {
-	const detail = XLSX.utils.json_to_sheet(rows.map(toHomeyRow), {
-		header: detailHeaders,
-	});
-	detail["!autofilter"] = { ref: detail["!ref"] };
-	detail["!cols"] = [
-		{ wch: 12 }, { wch: 20 }, { wch: 32 }, { wch: 10 }, { wch: 70 },
-		{ wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 12 },
-		{ wch: 12 }, { wch: 14 }, { wch: 45 },
-	];
-	const summary = XLSX.utils.aoa_to_sheet([
-		["항목", "값", "비고", "작성일"],
-		...summaryRows,
-	]);
-	summary["!cols"] = [{ wch: 16 }, { wch: 28 }, { wch: 48 }, { wch: 14 }];
-	const workbook = XLSX.utils.book_new();
-	XLSX.utils.book_append_sheet(workbook, detail, "경매목록");
-	XLSX.utils.book_append_sheet(workbook, summary, "요약");
-	return workbook;
 }
 
 async function writeOutputs(results, publish = false) {
