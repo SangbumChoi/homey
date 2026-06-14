@@ -125,57 +125,49 @@ import { colors } from "@toss/tds-colors";
 ### 법원경매 자동 수집
 
 서울 25개 구와 성남 3개 구의 물건을 가격·면적·물건종류 제한 없이 수집해
-앱이 바로 읽을 수 있는 `auction-data/latest.xlsx`와 날짜별 기록을 만들어요. 법원 사이트의 검색 범위에 맞춰
-실행일로부터 14일 뒤까지의 매각기일을 매번 새로 조회해요.
+`auction-data/`에 **매각기일별 엑셀 캐시**로 발행해요. 실행일로부터 14일 뒤까지의
+매각기일을 매번 새로 조회하고, 바뀐 날짜만 다시 써요(캐시 히트는 건너뜀).
 
 ```bash
-npm run crawl:auctions
+npm run crawl:auctions                 # 라이브 크롤 (한국망 + 크롬 필요)
+npm run data:raw-xlsx -- auction-data/latest.json.gz auction-data   # 캡처본 오프라인 재생성
 ```
 
-날짜별 Excel, 압축 원본 JSON, 요약 정보는 `auction-data/YYYY-MM-DD/`에 저장해요.
-각 수집일 폴더의 `by-sale-date/`에는 오늘부터 14일 뒤까지를 매각기일 하루 단위로
-분리한 Excel이 들어가며, 현재 0건인 날짜도 새 공고 유입을 비교할 수 있도록 저장해요.
-`auction-data/latest.xlsx`는 항상 가장 최근 수집 결과예요. 원본 응답과 지역별
-진행 상황은 로컬 체크포인트 `data/auction-crawl/latest.json`에도 남아요.
-테스트할 때는 `CRAWL_TARGET_LIMIT=1 npm run crawl:auctions`로 한 지역만 조회할 수 있어요.
-법원 사이트의 화면 구조나 접근 정책이 바뀌면 자동 수집도 함께 조정해야 해요.
-수집 방식과 유지보수 절차는 [`docs/skills/court-auction-crawling.md`](docs/skills/court-auction-crawling.md)에 정리되어 있어요.
+구조 (크롤 날짜 폴더 없음, 매각기일이 1급 키):
+
+```
+auction-data/
+  by-sale-date/2026-06-15.xlsx   매각기일별 파일 (캐시 단위)
+  by-sale-date/index.json        날짜별 건수·해시 매니페스트
+  latest.xlsx                    이번 수집 전체 (앱이 읽는 파일)
+  latest-metadata.json
+  latest.json.gz                 원본 응답 (오프라인 재생성용)
+```
+
+`.github/workflows/crawl-auctions.yml`이 매일 자동으로 크롤·커밋해요. 단, GitHub
+러너가 법원 사이트에 지오 차단되면 본인 맥에서 로컬 cron으로 돌려야 해요.
+자세한 절차는 [`.claude/skills/auction-crawl`](.claude/skills/auction-crawl/SKILL.md)와
+[`docs/skills/court-auction-crawling.md`](docs/skills/court-auction-crawling.md) 참고.
 
 ### 공개 다운로드
 
-이 저장소를 public으로 전환하면 아래 목록에서 누구나 날짜별 데이터를 다운로드할 수 있어요.
-크롤러가 실행될 때 다운로드 목록도 자동으로 갱신해요.
+이 저장소를 public으로 전환하면 누구나 데이터를 내려받을 수 있어요.
 
 <!-- AUCTION-DOWNLOADS:START -->
 ### Public Auction Data Downloads
 
 Latest crawl: **2026-06-12**, **1,910 properties**
 
-[Download latest Excel](auction-data/latest.xlsx) | [Download latest raw JSON.gz](auction-data/latest.json.gz) | [View latest metadata](auction-data/latest-metadata.json)
-
-| Crawl date | Excel | Full raw data | Metadata |
-|---|---|---|---|
-| 2026-06-12 | [Excel](auction-data/2026-06-12/seoul-seongnam-auctions.xlsx) | [Raw JSON.gz](auction-data/2026-06-12/raw.json.gz) | [Metadata](auction-data/2026-06-12/metadata.json) |
-
-#### Latest Two-Week Window By Auction Date
+[Download latest Excel](auction-data/latest.xlsx) | [Latest raw JSON.gz](auction-data/latest.json.gz) | [Metadata](auction-data/latest-metadata.json) | [By-sale-date index](auction-data/by-sale-date/index.json)
 
 | Auction date | Properties | Excel |
 |---|---:|---|
-| 2026-06-12 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-12.xlsx) |
-| 2026-06-13 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-13.xlsx) |
-| 2026-06-14 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-14.xlsx) |
-| 2026-06-15 | 161 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-15.xlsx) |
-| 2026-06-16 | 546 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-16.xlsx) |
-| 2026-06-17 | 418 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-17.xlsx) |
-| 2026-06-18 | 197 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-18.xlsx) |
-| 2026-06-19 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-19.xlsx) |
-| 2026-06-20 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-20.xlsx) |
-| 2026-06-21 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-21.xlsx) |
-| 2026-06-22 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-22.xlsx) |
-| 2026-06-23 | 515 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-23.xlsx) |
-| 2026-06-24 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-24.xlsx) |
-| 2026-06-25 | 73 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-25.xlsx) |
-| 2026-06-26 | 0 | [Excel](auction-data/2026-06-12/by-sale-date/2026-06-26.xlsx) |
+| 2026-06-15 | 161 | [Excel](auction-data/by-sale-date/2026-06-15.xlsx) |
+| 2026-06-16 | 546 | [Excel](auction-data/by-sale-date/2026-06-16.xlsx) |
+| 2026-06-17 | 418 | [Excel](auction-data/by-sale-date/2026-06-17.xlsx) |
+| 2026-06-18 | 197 | [Excel](auction-data/by-sale-date/2026-06-18.xlsx) |
+| 2026-06-23 | 515 | [Excel](auction-data/by-sale-date/2026-06-23.xlsx) |
+| 2026-06-25 | 73 | [Excel](auction-data/by-sale-date/2026-06-25.xlsx) |
 <!-- AUCTION-DOWNLOADS:END -->
 
 ---

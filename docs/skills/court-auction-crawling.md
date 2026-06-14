@@ -173,30 +173,29 @@ A complete crawl publishes:
 
 ```text
 auction-data/
-├── latest.xlsx
-├── latest.json.gz
-├── latest-metadata.json
-└── YYYY-MM-DD/
-    ├── seoul-seongnam-auctions.xlsx
-    ├── raw.json.gz
-    ├── metadata.json
-    ├── sale-date-index.json
-    └── by-sale-date/
-        ├── YYYY-MM-DD.xlsx
-        └── ...
+├── latest.xlsx              # this crawl's full set (the app reads this)
+├── latest.json.gz           # compressed source response (offline rebuild)
+├── latest-metadata.json     # summary for automated verification
+└── by-sale-date/
+    ├── 2026-06-15.xlsx       # one workbook per auction date (cache unit)
+    ├── ...
+    └── index.json           # per-date count/region/hash manifest
 ```
 
-- `latest.xlsx`: Homey's current downloadable/importable workbook.
-- `latest.json.gz`: Compressed full source response for audit and later analysis.
-- `latest-metadata.json`: Small summary suitable for automated verification.
-- Date directory: Immutable daily snapshot.
-- `by-sale-date/`: One workbook for every calendar day in the rolling two-week
-  window, including zero-result days. This makes newly announced auctions easy
-  to compare from one crawl day to the next.
-- `sale-date-index.json`: Counts by auction date, including Seoul and Seongnam
-  subtotals.
+There is **no per-crawl-date folder**. The auction date is the primary key.
 
-The crawler also rewrites the marked download-index section in `README.md`.
+- `latest.xlsx`: Homey's current importable workbook (whole crawl).
+- `by-sale-date/<date>.xlsx`: cached workbook for one auction date.
+- `by-sale-date/index.json`: manifest with each date's row count, Seoul/Seongnam
+  subtotals, and a content hash used for cache comparison.
+
+**Cache behavior**: each date's data hash is compared against `index.json`.
+Unchanged dates are skipped (cache hit, no rewrite); changed/new dates are
+rewritten. Past dates that fall out of the rolling window keep their cached
+file, so history accumulates while daily diffs stay small.
+
+The download index in `README.md` is maintained manually (the crawler no longer
+rewrites it).
 
 The XLSX detail sheet uses the headers expected by
 `src/utils/auctionXlsx.ts`, including `사건번호`, `주소/건물`, `최저가_원`, and
@@ -229,17 +228,22 @@ Also confirm:
 
 ## Daily Automation
 
-The Codex cron automation runs each morning in Asia/Seoul time. Its job is to:
+`.github/workflows/crawl-auctions.yml` runs daily (21:10 UTC = 06:10 KST) and on
+manual dispatch. It installs Playwright Chromium, runs `npm run crawl:auctions`,
+and commits only the changed files under `auction-data/` (skipping the commit
+entirely when every date is a cache hit).
 
-1. Run `npm run crawl:auctions`.
-2. Verify all outputs and counts.
-3. Stage only `auction-data`, `README.md`, and intentional crawler changes.
-4. Commit with a date-specific data message.
-5. Push `main` to `origin`.
-6. Report counts and failures.
+**Geo-block caveat**: GitHub-hosted runners are not in Korea, so the court site
+may return 403 there. If the scheduled job fails for that reason, run the crawl
+on a Korean-network machine (your Mac) instead:
 
-Do not stage unrelated workspace changes such as build artifacts, experiments,
-or personal documents.
+```bash
+npm run crawl:auctions
+git add auction-data && git commit -m "data: auction refresh" && git push
+```
+
+You can wire that into a local `crontab`/`launchd` job. Stage only
+`auction-data/` — never unrelated workspace changes.
 
 ## Common Failures
 
