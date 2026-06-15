@@ -178,14 +178,19 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 				))}
 			</div>
 
+			{/* ── 가격 분포 ── */}
+			<Section delay={0.06} title="가격 분포">
+				<PriceDistChart items={upcoming} />
+			</Section>
+
 			{/* ── 매각기일 분포 ── */}
-			<Section delay={0.06} title="매각기일 분포">
+			<Section delay={0.1} title="매각기일 분포">
 				<SaleDateChart items={upcoming} />
 			</Section>
 
 			{/* ── 관심 물건 기일 ── */}
 			<Section
-				delay={0.08}
+				delay={0.14}
 				title="관심 물건 기일"
 				action={
 					favorites.length > 0
@@ -243,11 +248,6 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 						))}
 					</RowCard>
 				)}
-			</Section>
-
-			{/* ── 가격 분포 ── */}
-			<Section delay={0.14} title="가격 분포">
-				<PriceDistChart items={upcoming} />
 			</Section>
 
 			<div style={{ height: 28 }} />
