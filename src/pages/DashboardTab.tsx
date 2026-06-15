@@ -523,32 +523,6 @@ function SaleDateChart({ items }: { items: AuctionItem[] }) {
 }
 
 /* ────────────────── 가격 분포 차트 ────────────────── */
-/** 작은 막대 위에 올리는 세로 기준선 (중앙값·평균) */
-function GuideLine({
-	pct,
-	color,
-	dashed,
-}: {
-	pct: number;
-	color: string;
-	dashed?: boolean;
-}) {
-	return (
-		<div
-			style={{
-				position: "absolute",
-				top: 0,
-				bottom: 0,
-				left: `${pct}%`,
-				width: 0,
-				borderLeft: `2px ${dashed ? "dashed" : "solid"} ${color}`,
-				transform: "translateX(-1px)",
-				zIndex: 1,
-			}}
-		/>
-	);
-}
-
 /** 범례용 짧은 선 견본 (실선/점선) */
 function LineMark({ color, dashed }: { color: string; dashed?: boolean }) {
 	return (
@@ -570,12 +544,13 @@ function fmtEok(n: number): string {
 	return Number.isInteger(n) ? `${n}` : n.toFixed(1).replace(/\.0$/, "");
 }
 
-const NICE_WIDTHS = [0.25, 0.5, 1, 2, 3, 5, 10, 20, 50, 100];
+const NICE_WIDTHS = [0.1, 0.2, 0.25, 0.5, 1, 2, 3, 5, 10, 20, 50, 100];
 
 /**
- * 진행 물건의 최저매각가 분포를 촘촘한 막대로 보여줘요.
- * 양 끝 극단값(상·하위 5%)은 축에서 제외해 가운데 분포가 잘 보이도록 하고,
- * 중앙값(빨강 실선)·평균(파랑 점선)을 기준선으로 겹쳐 그려요.
+ * 진행 물건의 최저매각가 분포를 이어지는 면적 그래프로 보여줘요.
+ * 양 끝 극단값(상·하위 5%)은 축에서 제외해 가운데 분포에 집중하고,
+ * 약 30개 구간으로 잘게 나눠 연속적인 곡선처럼 그려요.
+ * 중앙값(빨강 실선)·평균(파랑 점선)을 기준선으로 겹쳐요.
  */
 function PriceDistChart({ items }: { items: AuctionItem[] }) {
 	const EOK = 100_000_000;
@@ -594,15 +569,16 @@ function PriceDistChart({ items }: { items: AuctionItem[] }) {
 				: (prices[n / 2 - 1] + prices[n / 2]) / 2;
 		const mean = prices.reduce((s, p) => s + p, 0) / n;
 
-		/* 막대 축은 상·하위 5%를 잘라 가운데 분포에 집중해요 */
+		/* 축은 상·하위 5%를 잘라 가운데 분포에 집중해요 */
 		const q = (r: number) => prices[Math.min(n - 1, Math.round((n - 1) * r))];
 		const loRaw = q(0.05) / EOK;
 		const hiRaw = q(0.95) / EOK;
-		const robustSpan = Math.max(hiRaw - loRaw, 0.25);
+		const robustSpan = Math.max(hiRaw - loRaw, 0.1);
 
-		/* 14개 안팎의 막대가 되도록 구간 폭(억)을 골라요 */
+		/* 약 30개(데이터가 적으면 그만큼) 구간이 되도록 구간 폭(억)을 골라요 */
+		const target = Math.max(8, Math.min(30, n));
 		const width =
-			NICE_WIDTHS.find((w) => robustSpan / w <= 14) ??
+			NICE_WIDTHS.find((w) => robustSpan / w <= target) ??
 			NICE_WIDTHS[NICE_WIDTHS.length - 1];
 		const start = Math.floor(loRaw / width) * width;
 		let end = Math.ceil(hiRaw / width) * width;
@@ -621,9 +597,10 @@ function PriceDistChart({ items }: { items: AuctionItem[] }) {
 		const outliers = n - counted;
 
 		const pct = (v: number) =>
-			Math.max(0, Math.min(100, ((v / EOK - start) / (end - start) * 100)));
+			Math.max(0, Math.min(100, ((v / EOK - start) / (end - start)) * 100));
 
-		const tickCount = Math.min(5, binCount + 1);
+		/* x축 라벨은 6개 정도만 (눈금은 구간 수만큼 촘촘하게) */
+		const tickCount = Math.min(6, binCount + 1);
 		const ticks = Array.from({ length: tickCount }, (_, i) =>
 			fmtEok(start + ((end - start) * i) / (tickCount - 1 || 1)),
 		);
@@ -653,6 +630,17 @@ function PriceDistChart({ items }: { items: AuctionItem[] }) {
 	const { bins, max, median, mean, medianPct, meanPct, ticks, count, outliers } =
 		stat;
 
+	/* SVG 좌표 — 가로(0~W)는 컨테이너 너비에 맞춰 늘어나요 */
+	const W = 300;
+	const H = 96;
+	const TOP = 8;
+	const yOf = (c: number) => H - (c / max) * (H - TOP);
+	const xOf = (i: number) => ((i + 0.5) / bins.length) * W;
+	const pts = bins.map((c, i) => `${xOf(i).toFixed(1)},${yOf(c).toFixed(1)}`);
+	const areaPath = `M0,${H} L${pts.join(" L")} L${W},${H} Z`;
+	const medianX = (medianPct / 100) * W;
+	const meanX = (meanPct / 100) * W;
+
 	return (
 		<div
 			style={{
@@ -662,40 +650,83 @@ function PriceDistChart({ items }: { items: AuctionItem[] }) {
 				padding: "16px 14px 12px",
 			}}
 		>
-			{/* 막대 + 기준선 */}
-			<div style={{ position: "relative", height: 96 }}>
-				<div
-					style={{
-						position: "absolute",
-						inset: 0,
-						display: "flex",
-						alignItems: "flex-end",
-						borderBottom: "2px solid #111",
-					}}
-				>
-					{bins.map((c, idx) => (
-						<div
-							key={idx}
-							style={{
-								flex: 1,
-								height: `${(c / max) * 100}%`,
-								backgroundColor: "#B6F09C",
-								borderLeft: idx === 0 ? "none" : "1px solid rgba(17,17,17,0.12)",
-								borderTop: c > 0 ? "2px solid #111" : "none",
-							}}
-						/>
-					))}
-				</div>
-				<GuideLine pct={medianPct} color="#F44336" />
-				<GuideLine pct={meanPct} color="#1E88E5" dashed />
-			</div>
+			{/* 이어지는 면적 그래프 + 기준선 */}
+			<svg
+				width="100%"
+				height={H}
+				viewBox={`0 0 ${W} ${H}`}
+				preserveAspectRatio="none"
+				style={{ display: "block", overflow: "visible" }}
+			>
+				<path d={areaPath} fill="#B6F09C" />
+				<polyline
+					points={pts.join(" ")}
+					fill="none"
+					stroke="#111"
+					strokeWidth={2}
+					strokeLinejoin="round"
+					strokeLinecap="round"
+					vectorEffect="non-scaling-stroke"
+				/>
+				<line
+					x1={0}
+					y1={H}
+					x2={W}
+					y2={H}
+					stroke="#111"
+					strokeWidth={2}
+					vectorEffect="non-scaling-stroke"
+				/>
+				<line
+					x1={medianX}
+					y1={0}
+					x2={medianX}
+					y2={H}
+					stroke="#F44336"
+					strokeWidth={2}
+					vectorEffect="non-scaling-stroke"
+				/>
+				<line
+					x1={meanX}
+					y1={0}
+					x2={meanX}
+					y2={H}
+					stroke="#1E88E5"
+					strokeWidth={2}
+					strokeDasharray="3 3"
+					vectorEffect="non-scaling-stroke"
+				/>
+			</svg>
 
-			{/* x축 눈금 (억) */}
+			{/* x축 눈금자 — 구간 경계마다 촘촘하게, 5칸마다 길게 */}
 			<div
 				style={{
 					display: "flex",
 					justifyContent: "space-between",
-					marginTop: 6,
+					alignItems: "flex-start",
+					height: 5,
+					marginTop: 2,
+				}}
+			>
+				{Array.from({ length: bins.length + 1 }, (_, i) => (
+					<span
+						key={i}
+						style={{
+							width: 1,
+							height: i % 5 === 0 ? 5 : 3,
+							backgroundColor:
+								i % 5 === 0 ? "rgba(17,17,17,0.35)" : "rgba(17,17,17,0.18)",
+						}}
+					/>
+				))}
+			</div>
+
+			{/* x축 라벨 (억) */}
+			<div
+				style={{
+					display: "flex",
+					justifyContent: "space-between",
+					marginTop: 3,
 				}}
 			>
 				{ticks.map((t, i) => (
