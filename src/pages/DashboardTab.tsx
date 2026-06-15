@@ -523,41 +523,125 @@ function SaleDateChart({ items }: { items: AuctionItem[] }) {
 }
 
 /* ────────────────── 가격 분포 차트 ────────────────── */
-/** 진행 물건의 최저매각가를 가격 구간으로 묶어 막대로 보여줘요 — 노란 막대가 중앙값 구간이에요 */
+/** 작은 막대 위에 올리는 세로 기준선 (중앙값·평균) */
+function GuideLine({
+	pct,
+	color,
+	dashed,
+}: {
+	pct: number;
+	color: string;
+	dashed?: boolean;
+}) {
+	return (
+		<div
+			style={{
+				position: "absolute",
+				top: 0,
+				bottom: 0,
+				left: `${pct}%`,
+				width: 0,
+				borderLeft: `2px ${dashed ? "dashed" : "solid"} ${color}`,
+				transform: "translateX(-1px)",
+				zIndex: 1,
+			}}
+		/>
+	);
+}
+
+/** 범례용 짧은 선 견본 (실선/점선) */
+function LineMark({ color, dashed }: { color: string; dashed?: boolean }) {
+	return (
+		<span
+			style={{
+				display: "inline-block",
+				width: 12,
+				height: 0,
+				borderTop: `2px ${dashed ? "dashed" : "solid"} ${color}`,
+				verticalAlign: "middle",
+				marginRight: 3,
+			}}
+		/>
+	);
+}
+
+/** 정수면 그대로, 아니면 소수 첫째 자리까지 (억 단위 축 라벨) */
+function fmtEok(n: number): string {
+	return Number.isInteger(n) ? `${n}` : n.toFixed(1).replace(/\.0$/, "");
+}
+
+const NICE_WIDTHS = [0.25, 0.5, 1, 2, 3, 5, 10, 20, 50, 100];
+
+/**
+ * 진행 물건의 최저매각가 분포를 촘촘한 막대로 보여줘요.
+ * 양 끝 극단값(상·하위 5%)은 축에서 제외해 가운데 분포가 잘 보이도록 하고,
+ * 중앙값(빨강 실선)·평균(파랑 점선)을 기준선으로 겹쳐 그려요.
+ */
 function PriceDistChart({ items }: { items: AuctionItem[] }) {
 	const EOK = 100_000_000;
-	const { bins, median, medianIdx } = useMemo(() => {
+	const stat = useMemo(() => {
 		const prices = items
 			.map((i) => i.minPrice)
 			.filter((p) => p > 0)
 			.sort((a, b) => a - b);
-		if (prices.length === 0) {
-			return { bins: [], median: 0, medianIdx: -1 };
-		}
-		const minEok = Math.floor(prices[0] / EOK);
-		const maxEok = Math.max(minEok + 1, Math.ceil(prices[prices.length - 1] / EOK));
-		const span = maxEok - minEok;
-		/* 막대가 6개 이하가 되도록 보기 좋은 구간 폭(억)을 골라요 */
-		const niceWidths = [1, 2, 3, 5, 10, 20, 50, 100];
-		const width = niceWidths.find((w) => span / w <= 6) ?? Math.ceil(span / 6);
-		const start = Math.floor(minEok / width) * width;
-		const bins: { lo: number; count: number }[] = [];
-		for (let lo = start; lo < maxEok; lo += width) {
-			bins.push({ lo, count: 0 });
-		}
+		const n = prices.length;
+		if (n === 0) return null;
+
+		/* 전체 기준 중앙값·평균 (극단값 포함) */
+		const median =
+			n % 2 === 1
+				? prices[(n - 1) / 2]
+				: (prices[n / 2 - 1] + prices[n / 2]) / 2;
+		const mean = prices.reduce((s, p) => s + p, 0) / n;
+
+		/* 막대 축은 상·하위 5%를 잘라 가운데 분포에 집중해요 */
+		const q = (r: number) => prices[Math.min(n - 1, Math.round((n - 1) * r))];
+		const loRaw = q(0.05) / EOK;
+		const hiRaw = q(0.95) / EOK;
+		const robustSpan = Math.max(hiRaw - loRaw, 0.25);
+
+		/* 14개 안팎의 막대가 되도록 구간 폭(억)을 골라요 */
+		const width =
+			NICE_WIDTHS.find((w) => robustSpan / w <= 14) ??
+			NICE_WIDTHS[NICE_WIDTHS.length - 1];
+		const start = Math.floor(loRaw / width) * width;
+		let end = Math.ceil(hiRaw / width) * width;
+		if (end <= start) end = start + width;
+		const binCount = Math.max(1, Math.round((end - start) / width));
+
+		const bins = Array.from({ length: binCount }, () => 0);
+		let counted = 0;
 		for (const p of prices) {
-			const idx = Math.min(bins.length - 1, Math.floor((p / EOK - start) / width));
-			bins[idx].count++;
+			const idx = Math.floor((p / EOK - start) / width);
+			if (idx >= 0 && idx < binCount) {
+				bins[idx]++;
+				counted++;
+			}
 		}
-		const median = prices[Math.floor(prices.length / 2)];
-		const medianIdx = Math.min(
-			bins.length - 1,
-			Math.floor((median / EOK - start) / width),
+		const outliers = n - counted;
+
+		const pct = (v: number) =>
+			Math.max(0, Math.min(100, ((v / EOK - start) / (end - start) * 100)));
+
+		const tickCount = Math.min(5, binCount + 1);
+		const ticks = Array.from({ length: tickCount }, (_, i) =>
+			fmtEok(start + ((end - start) * i) / (tickCount - 1 || 1)),
 		);
-		return { bins, median, medianIdx };
+
+		return {
+			bins,
+			max: Math.max(...bins, 1),
+			median,
+			mean,
+			medianPct: pct(median),
+			meanPct: pct(mean),
+			ticks,
+			count: n,
+			outliers,
+		};
 	}, [items]);
 
-	if (bins.length === 0) {
+	if (stat === null) {
 		return (
 			<EmptyCard
 				icon={<ChartIcon size={30} />}
@@ -566,7 +650,8 @@ function PriceDistChart({ items }: { items: AuctionItem[] }) {
 		);
 	}
 
-	const max = Math.max(...bins.map((b) => b.count));
+	const { bins, max, median, mean, medianPct, meanPct, ticks, count, outliers } =
+		stat;
 
 	return (
 		<div
@@ -577,54 +662,70 @@ function PriceDistChart({ items }: { items: AuctionItem[] }) {
 				padding: "16px 14px 12px",
 			}}
 		>
+			{/* 막대 + 기준선 */}
+			<div style={{ position: "relative", height: 96 }}>
+				<div
+					style={{
+						position: "absolute",
+						inset: 0,
+						display: "flex",
+						alignItems: "flex-end",
+						borderBottom: "2px solid #111",
+					}}
+				>
+					{bins.map((c, idx) => (
+						<div
+							key={idx}
+							style={{
+								flex: 1,
+								height: `${(c / max) * 100}%`,
+								backgroundColor: "#B6F09C",
+								borderLeft: idx === 0 ? "none" : "1px solid rgba(17,17,17,0.12)",
+								borderTop: c > 0 ? "2px solid #111" : "none",
+							}}
+						/>
+					))}
+				</div>
+				<GuideLine pct={medianPct} color="#F44336" />
+				<GuideLine pct={meanPct} color="#1E88E5" dashed />
+			</div>
+
+			{/* x축 눈금 (억) */}
 			<div
 				style={{
 					display: "flex",
-					alignItems: "flex-end",
-					gap: 8,
-					height: 112,
+					justifyContent: "space-between",
+					marginTop: 6,
 				}}
 			>
-				{bins.map((b, idx) => (
-					<div
-						key={b.lo}
-						style={{
-							flex: 1,
-							display: "flex",
-							flexDirection: "column",
-							alignItems: "center",
-							justifyContent: "flex-end",
-							gap: 4,
-							minWidth: 0,
-						}}
-					>
-						<span style={{ fontSize: 10, fontWeight: 800, color: "#111" }}>
-							{b.count}
-						</span>
-						<div
-							style={{
-								width: "100%",
-								height: Math.max(5, (b.count / max) * 64),
-								backgroundColor: idx === medianIdx ? "#FFD43B" : "#B6F09C",
-								border: "2px solid #111",
-								borderRadius: 6,
-							}}
-						/>
-						<span style={{ fontSize: 10, color: "#555", whiteSpace: "nowrap" }}>
-							{b.lo}
-						</span>
-					</div>
+				{ticks.map((t, i) => (
+					<span key={i} style={{ fontSize: 10, color: "#8C8576" }}>
+						{t}
+					</span>
 				))}
 			</div>
+
+			{/* 범례 + 통계 */}
 			<div
 				style={{
 					fontSize: 10,
 					color: "#8C8576",
 					marginTop: 8,
-					textAlign: "right",
+					display: "flex",
+					flexWrap: "wrap",
+					alignItems: "center",
+					gap: "2px 7px",
 				}}
 			>
-				단위: 억원 · <Swatch color="#FFD43B" /> 중앙값 {formatKRW(median)}
+				<span>
+					<LineMark color="#F44336" /> 중앙값 {formatKRW(median)}
+				</span>
+				<span>
+					<LineMark color="#1E88E5" dashed /> 평균 {formatKRW(Math.round(mean))}
+				</span>
+				<span>· 총 {count}건</span>
+				{outliers > 0 && <span>· 극단값 {outliers}건 제외 (단위: 억원)</span>}
+				{outliers === 0 && <span>· 단위: 억원</span>}
 			</div>
 		</div>
 	);
