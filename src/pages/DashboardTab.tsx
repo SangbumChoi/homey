@@ -6,7 +6,6 @@ import {
 	DdayPill,
 	dDayLabel,
 	DetailSheet,
-	displayName,
 	rowTitle,
 	todayStr,
 	type AuctionPreset,
@@ -59,7 +58,7 @@ function fmtKoreanDate(iso: string | null): string {
 
 /** 홈 대시보드 — 이번 주에 봐야 할 것들을 모아 보여줘요 */
 export function DashboardTab({ goAuction, goFavorites }: Props) {
-	const { items, favorites, toggleFavorite, prevPrices } = useAuctionStore();
+	const { items, favorites, toggleFavorite } = useAuctionStore();
 	const [detail, setDetail] = useState<AuctionItem | null>(null);
 	const [recordItem, setRecordItem] = useState<AuctionItem | null>(null);
 
@@ -84,23 +83,6 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 				.sort((a, b) => a.saleDate.localeCompare(b.saleDate))
 				.slice(0, 3),
 		[items, favorites, today],
-	);
-
-	/* 최근 업로드로 최저가가 내려간 물건 */
-	const priceDrops = useMemo(
-		() =>
-			items
-				.filter((i) => {
-					const prev = prevPrices[auctionKey(i)];
-					return prev !== undefined && prev > i.minPrice && i.saleDate >= today;
-				})
-				.sort((a, b) => {
-					const dropA = prevPrices[auctionKey(a)] - a.minPrice;
-					const dropB = prevPrices[auctionKey(b)] - b.minPrice;
-					return dropB - dropA;
-				})
-				.slice(0, 5),
-		[items, prevPrices, today],
 	);
 
 	return (
@@ -263,74 +245,9 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 				)}
 			</Section>
 
-			{/* ── 가격 변동 ── */}
-			<Section delay={0.14} title="최저가 하락">
-				{priceDrops.length === 0 ? (
-					<EmptyCard
-						icon={<ChartIcon size={30} />}
-						text={"새 엑셀을 업로드하면 유찰로\n최저가가 내려간 물건을 알려드려요"}
-					/>
-				) : (
-					<RowCard>
-						{priceDrops.map((item, idx) => {
-							const prev = prevPrices[auctionKey(item)];
-							const dropPct = Math.round((1 - item.minPrice / prev) * 100);
-							return (
-								<div
-									key={auctionKey(item)}
-									className="touchable"
-									onClick={() => setDetail(item)}
-									style={{
-										display: "flex",
-										alignItems: "center",
-										gap: 10,
-										padding: "13px 16px",
-										borderTop: idx === 0 ? "none" : "1px solid #F0EDE6",
-										cursor: "pointer",
-									}}
-								>
-									<div style={{ flex: 1, minWidth: 0 }}>
-										<div
-											style={{
-												fontSize: 13,
-												fontWeight: 700,
-												color: "#111",
-												whiteSpace: "nowrap",
-												overflow: "hidden",
-												textOverflow: "ellipsis",
-											}}
-										>
-											{displayName(item)}
-										</div>
-										<div
-											style={{ fontSize: 12, color: "#555", marginTop: 3 }}
-										>
-											<span
-												style={{
-													textDecoration: "line-through",
-													color: "#8C8576",
-												}}
-											>
-												{formatKRW(prev)}
-											</span>{" "}
-											→ <strong>{formatKRW(item.minPrice)}</strong>
-										</div>
-									</div>
-									<span
-										style={{
-											fontSize: 13,
-											fontWeight: 800,
-											color: "#F44336",
-											flexShrink: 0,
-										}}
-									>
-										−{dropPct}%
-									</span>
-								</div>
-							);
-						})}
-					</RowCard>
-				)}
+			{/* ── 가격 분포 ── */}
+			<Section delay={0.14} title="가격 분포">
+				<PriceDistChart items={upcoming} />
 			</Section>
 
 			<div style={{ height: 28 }} />
@@ -600,6 +517,114 @@ function SaleDateChart({ items }: { items: AuctionItem[] }) {
 			>
 				<Swatch color="#FF6B6B" /> 7일 이내 · <Swatch color="#FFD43B" /> 14일
 				이내 · <Swatch color="#B6F09C" /> 그 이후
+			</div>
+		</div>
+	);
+}
+
+/* ────────────────── 가격 분포 차트 ────────────────── */
+/** 진행 물건의 최저매각가를 가격 구간으로 묶어 막대로 보여줘요 — 노란 막대가 중앙값 구간이에요 */
+function PriceDistChart({ items }: { items: AuctionItem[] }) {
+	const EOK = 100_000_000;
+	const { bins, median, medianIdx } = useMemo(() => {
+		const prices = items
+			.map((i) => i.minPrice)
+			.filter((p) => p > 0)
+			.sort((a, b) => a - b);
+		if (prices.length === 0) {
+			return { bins: [], median: 0, medianIdx: -1 };
+		}
+		const minEok = Math.floor(prices[0] / EOK);
+		const maxEok = Math.max(minEok + 1, Math.ceil(prices[prices.length - 1] / EOK));
+		const span = maxEok - minEok;
+		/* 막대가 6개 이하가 되도록 보기 좋은 구간 폭(억)을 골라요 */
+		const niceWidths = [1, 2, 3, 5, 10, 20, 50, 100];
+		const width = niceWidths.find((w) => span / w <= 6) ?? Math.ceil(span / 6);
+		const start = Math.floor(minEok / width) * width;
+		const bins: { lo: number; count: number }[] = [];
+		for (let lo = start; lo < maxEok; lo += width) {
+			bins.push({ lo, count: 0 });
+		}
+		for (const p of prices) {
+			const idx = Math.min(bins.length - 1, Math.floor((p / EOK - start) / width));
+			bins[idx].count++;
+		}
+		const median = prices[Math.floor(prices.length / 2)];
+		const medianIdx = Math.min(
+			bins.length - 1,
+			Math.floor((median / EOK - start) / width),
+		);
+		return { bins, median, medianIdx };
+	}, [items]);
+
+	if (bins.length === 0) {
+		return (
+			<EmptyCard
+				icon={<ChartIcon size={30} />}
+				text={"새 엑셀을 업로드하면 진행 물건의\n가격 분포를 보여드려요"}
+			/>
+		);
+	}
+
+	const max = Math.max(...bins.map((b) => b.count));
+
+	return (
+		<div
+			style={{
+				backgroundColor: "#fff",
+				border: "2px solid #111",
+				borderRadius: 14,
+				padding: "16px 14px 12px",
+			}}
+		>
+			<div
+				style={{
+					display: "flex",
+					alignItems: "flex-end",
+					gap: 8,
+					height: 112,
+				}}
+			>
+				{bins.map((b, idx) => (
+					<div
+						key={b.lo}
+						style={{
+							flex: 1,
+							display: "flex",
+							flexDirection: "column",
+							alignItems: "center",
+							justifyContent: "flex-end",
+							gap: 4,
+							minWidth: 0,
+						}}
+					>
+						<span style={{ fontSize: 10, fontWeight: 800, color: "#111" }}>
+							{b.count}
+						</span>
+						<div
+							style={{
+								width: "100%",
+								height: Math.max(5, (b.count / max) * 64),
+								backgroundColor: idx === medianIdx ? "#FFD43B" : "#B6F09C",
+								border: "2px solid #111",
+								borderRadius: 6,
+							}}
+						/>
+						<span style={{ fontSize: 10, color: "#555", whiteSpace: "nowrap" }}>
+							{b.lo}
+						</span>
+					</div>
+				))}
+			</div>
+			<div
+				style={{
+					fontSize: 10,
+					color: "#8C8576",
+					marginTop: 8,
+					textAlign: "right",
+				}}
+			>
+				단위: 억원 · <Swatch color="#FFD43B" /> 중앙값 {formatKRW(median)}
 			</div>
 		</div>
 	);
