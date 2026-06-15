@@ -1,44 +1,44 @@
 {
-  "collectedAt": "2026-06-12T11:30:44.222Z",
-  "crawlDate": "2026-06-12",
-  "queryStartDate": "2026.06.12",
-  "queryEndDate": "2026.06.26",
-  "total": 1910,
-  "seoul": 1857,
-  "seongnam": 53,
+  "collectedAt": "2026-06-15T13:00:19.867Z",
+  "crawlDate": "2026-06-15",
+  "queryStartDate": "2026.06.15",
+  "queryEndDate": "2026.06.29",
+  "total": 1944,
+  "seoul": 1838,
+  "seongnam": 106,
   "seongnamDistricts": {
-    "성남시 분당구": 22,
-    "성남시 중원구": 22,
-    "성남시 수정구": 9
+    "성남시 분당구": 49,
+    "성남시 중원구": 29,
+    "성남시 수정구": 28
   },
   "saleDates": [
     {
       "saleDate": "2026-06-15",
-      "count": 161,
-      "seoul": 108,
+      "count": 153,
+      "seoul": 100,
       "seongnam": 53,
       "seongnamDistricts": {
         "성남시 분당구": 22,
         "성남시 중원구": 22,
         "성남시 수정구": 9
       },
-      "updatedAt": "2026-06-12T11:30:44.222Z"
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     },
     {
       "saleDate": "2026-06-16",
-      "count": 546,
-      "seoul": 546,
+      "count": 537,
+      "seoul": 537,
       "seongnam": 0,
       "seongnamDistricts": {},
-      "updatedAt": "2026-06-12T11:30:44.222Z"
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     },
     {
       "saleDate": "2026-06-17",
-      "count": 418,
-      "seoul": 418,
+      "count": 417,
+      "seoul": 417,
       "seongnam": 0,
       "seongnamDistricts": {},
-      "updatedAt": "2026-06-12T11:30:44.222Z"
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     },
     {
       "saleDate": "2026-06-18",
@@ -50,11 +50,11 @@
     },
     {
       "saleDate": "2026-06-23",
-      "count": 515,
-      "seoul": 515,
+      "count": 514,
+      "seoul": 514,
       "seongnam": 0,
       "seongnamDistricts": {},
-      "updatedAt": "2026-06-12T11:30:44.222Z"
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     },
     {
       "saleDate": "2026-06-25",
@@ -63,6 +63,18 @@
       "seongnam": 0,
       "seongnamDistricts": {},
       "updatedAt": "2026-06-12T11:30:44.222Z"
+    },
+    {
+      "saleDate": "2026-06-29",
+      "count": 53,
+      "seoul": 0,
+      "seongnam": 53,
+      "seongnamDistricts": {
+        "성남시 분당구": 27,
+        "성남시 수정구": 19,
+        "성남시 중원구": 7
+      },
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     }
   ]
 }
