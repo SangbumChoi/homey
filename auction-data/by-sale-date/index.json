@@ -1,39 +1,39 @@
 {
-  "updatedAt": "2026-06-12T11:30:44.222Z",
+  "updatedAt": "2026-06-15T13:00:19.867Z",
   "saleDates": [
     {
       "saleDate": "2026-06-15",
-      "count": 161,
-      "seoul": 108,
+      "count": 153,
+      "seoul": 100,
       "seongnam": 53,
       "seongnamDistricts": {
         "성남시 분당구": 22,
         "성남시 중원구": 22,
         "성남시 수정구": 9
       },
-      "hash": "0e4608d74bd3bbc9",
+      "hash": "2cf0951f0655d8c2",
       "file": "by-sale-date/2026-06-15.xlsx",
-      "updatedAt": "2026-06-12T11:30:44.222Z"
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     },
     {
       "saleDate": "2026-06-16",
-      "count": 546,
-      "seoul": 546,
+      "count": 537,
+      "seoul": 537,
       "seongnam": 0,
       "seongnamDistricts": {},
-      "hash": "34a1c819a9e9ad5c",
+      "hash": "ddfbe651bafce202",
       "file": "by-sale-date/2026-06-16.xlsx",
-      "updatedAt": "2026-06-12T11:30:44.222Z"
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     },
     {
       "saleDate": "2026-06-17",
-      "count": 418,
-      "seoul": 418,
+      "count": 417,
+      "seoul": 417,
       "seongnam": 0,
       "seongnamDistricts": {},
-      "hash": "ac02e8b8ba054f95",
+      "hash": "64b00e9d4f70be17",
       "file": "by-sale-date/2026-06-17.xlsx",
-      "updatedAt": "2026-06-12T11:30:44.222Z"
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     },
     {
       "saleDate": "2026-06-18",
@@ -47,13 +47,13 @@
     },
     {
       "saleDate": "2026-06-23",
-      "count": 515,
-      "seoul": 515,
+      "count": 514,
+      "seoul": 514,
       "seongnam": 0,
       "seongnamDistricts": {},
-      "hash": "60145d456c57b989",
+      "hash": "fedcfa2f1f5c62f6",
       "file": "by-sale-date/2026-06-23.xlsx",
-      "updatedAt": "2026-06-12T11:30:44.222Z"
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     },
     {
       "saleDate": "2026-06-25",
@@ -64,6 +64,20 @@
       "hash": "134173b3e4aec3ef",
       "file": "by-sale-date/2026-06-25.xlsx",
       "updatedAt": "2026-06-12T11:30:44.222Z"
+    },
+    {
+      "saleDate": "2026-06-29",
+      "count": 53,
+      "seoul": 0,
+      "seongnam": 53,
+      "seongnamDistricts": {
+        "성남시 분당구": 27,
+        "성남시 수정구": 19,
+        "성남시 중원구": 7
+      },
+      "hash": "5521723e3874f604",
+      "file": "by-sale-date/2026-06-29.xlsx",
+      "updatedAt": "2026-06-15T13:00:19.867Z"
     }
   ]
 }
