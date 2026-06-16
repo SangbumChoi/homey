@@ -41,6 +41,9 @@ jobs:
       - name: Crawl and publish
         env:
           HEADLESS: "true"
+          # 기본은 서울+성남. 전국으로 넓히려면 맥에서 검증 후 아래를 켜세요.
+          # (.claude/skills/auction-crawl 의 '수집 범위' 참고)
+          # CRAWL_SCOPE: nationwide
         run: npm run crawl:auctions
 
       - name: Commit changed auction data
