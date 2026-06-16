@@ -279,8 +279,8 @@ const landscape = base(
 				330,
 				`<div style="padding:16px 16px">
 					<div style="display:flex;gap:7px;margin-bottom:12px">${chip("6억 이하", true)}${chip("25~35평", false)}</div>
-					${auctionRow("강남구 역삼동 ○○", "25.7평", "최저가 8억 4,800만", 64, "D-3", "#FF6B6B", true)}
-					${auctionRow("성남 분당구 정자동 □□", "30.6평", "최저가 9억 7,000만", 72, "D-14", "#B6F09C", false)}
+					${auctionRow("강남구 역삼동 ○○", "25.7평", "최저가 8억 4,800만", 64, "D-3", "#FF6B6B", true, [["지분", "danger"]])}
+					${auctionRow("성남 분당구 정자동 □□", "30.6평", "최저가 9억 7,000만", 72, "D-14", "#B6F09C", false, [["제시외 건물", "warn"]])}
 				</div>`,
 			)}
 		</div>
