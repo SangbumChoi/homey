@@ -4,7 +4,6 @@ import { colors } from "@toss/tds-colors";
 import { useAuctionStore } from "../store/useAuctionStore";
 import { auctionKey, formatKRW, pricePerPyeong } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
-import { fetchRemoteAuctionData } from "../services/remoteAuctionData";
 import {
 	trackConditionFilter,
 	trackCourtFilter,
@@ -291,8 +290,7 @@ export function AuctionTab({
 	preset?: AuctionPreset | null;
 	onPresetApplied?: () => void;
 } = {}) {
-	const { items, dataDate, importItems, favorites, toggleFavorite } =
-		useAuctionStore();
+	const { items, dataDate, favorites, toggleFavorite } = useAuctionStore();
 
 	/* 필터 상태 */
 	const [region, setRegion] = useState<string | null>(null);
@@ -334,41 +332,6 @@ export function AuctionTab({
 		onPresetApplied?.();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [preset]);
-
-	/* 원격 동기화 */
-	const [syncing, setSyncing] = useState(false);
-	const [uploadMsg, setUploadMsg] = useState<{
-		text: string;
-		error?: boolean;
-	} | null>(null);
-
-	/* 원격 저장소(homey-data)에서 최신 주간 엑셀을 받아 병합해요 */
-	const handleRemoteSync = async () => {
-		setSyncing(true);
-		setUploadMsg(null);
-		try {
-			const { items: parsed, dataDate: parsedDate } =
-				await fetchRemoteAuctionData();
-			const { added, updated } = importItems(parsed, parsedDate);
-			useAuctionStore.getState().markRemoteChecked();
-			setUploadMsg({
-				text:
-					added + updated > 0
-						? `새 데이터 반영 — 신규 ${added}건, 갱신 ${updated}건이에요`
-						: "이미 최신 데이터예요",
-			});
-		} catch (err) {
-			setUploadMsg({
-				text:
-					err instanceof Error
-						? err.message
-						: "새 데이터를 확인하지 못했어요",
-				error: true,
-			});
-		} finally {
-			setSyncing(false);
-		}
-	};
 
 	/* 파생 데이터 */
 	const regions = useMemo(
@@ -482,43 +445,10 @@ export function AuctionTab({
 							경매 물건
 						</div>
 						<div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>
-							{dataDate ? `${dataDate} 기준` : ""} · 전체 {items.length}건 ·{" "}
-							<button
-								onClick={handleRemoteSync}
-								disabled={syncing}
-								style={{
-									border: "none",
-									background: "none",
-									padding: 0,
-									fontSize: 12,
-									fontWeight: 700,
-									color: "#111",
-									textDecoration: "underline",
-									cursor: "pointer",
-								}}
-							>
-								{syncing ? "확인 중…" : "↻ 새 데이터"}
-							</button>
+							{dataDate ? `${dataDate} 기준 · ` : ""}전체 {items.length}건
 						</div>
 					</div>
 				</div>
-
-				{uploadMsg && (
-					<div
-						style={{
-							marginTop: 10,
-							padding: "8px 12px",
-							borderRadius: 8,
-							fontSize: 12,
-							border: "2px solid #111",
-							backgroundColor: uploadMsg.error ? "#FF6B6B" : "#B6F09C",
-							color: "#111",
-							fontWeight: 700,
-						}}
-					>
-						{uploadMsg.text}
-					</div>
-				)}
 			</div>
 
 			{/* ── 필터 칩바 + 정렬 (스크롤해도 상단에 고정돼요) ── */}
