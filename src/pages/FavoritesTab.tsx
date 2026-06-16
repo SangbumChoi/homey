@@ -4,11 +4,10 @@ import { auctionKey, formatKRW, pricePerPyeong } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import {
 	AuctionRow,
+	ConditionBadges,
 	DetailSheet,
 	dDayLabel,
 	displayName,
-	isShareSale,
-	ShareBadge,
 	shortCourt,
 } from "./AuctionPage";
 import { StarIcon } from "../components/icons";
@@ -225,11 +224,16 @@ function CompareTable({
 								}}
 							>
 								{displayName(item)}
-									{isShareSale(item) && (
-										<span style={{ display: "inline-block", marginTop: 4 }}>
-											<ShareBadge />
-										</span>
-									)}
+									<span
+										style={{
+											display: "flex",
+											flexWrap: "wrap",
+											gap: 4,
+											marginTop: 5,
+										}}
+									>
+										<ConditionBadges item={item} includeInfo={false} />
+									</span>
 							</th>
 						))}
 					</tr>

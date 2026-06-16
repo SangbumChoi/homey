@@ -119,21 +119,61 @@ export function displayName(item: AuctionItem): string {
 	return buildingName(item.address) ?? shortAddress(item.address);
 }
 
-/** 지분매각 여부 — 비고에 "지분"이 들어가면 공유지분 매각이에요 */
-export function isShareSale(item: AuctionItem): boolean {
-	return item.note?.includes("지분") ?? false;
+/** 특별 매각 조건 — 비고를 분석해 위험/주의/정보 태그로 분류해요 */
+type ConditionTier = "danger" | "warn" | "info";
+interface ConditionTag {
+	label: string;
+	tier: ConditionTier;
 }
 
-/** 지분매각 배지 — 권리관계가 일반 경매와 다르니 눈에 띄게 알려줘요 */
-export function ShareBadge({ size = "small" }: { size?: "small" | "medium" }) {
+/** 비고 키워드 → 태그 매핑 (위에 있을수록 우선순위가 높아요) */
+const CONDITION_RULES: { kw: string; label: string; tier: ConditionTier }[] = [
+	{ kw: "지분", label: "지분", tier: "danger" },
+	{ kw: "위반건축물", label: "위반건축물", tier: "danger" },
+	{ kw: "유치권", label: "유치권", tier: "danger" },
+	{ kw: "제시외", label: "제시외 건물", tier: "warn" },
+	{ kw: "별도등기", label: "별도등기", tier: "warn" },
+	{ kw: "재매각", label: "재매각", tier: "warn" },
+	{ kw: "특별매각조건", label: "보증금 20%", tier: "warn" },
+	{ kw: "일괄매각", label: "일괄매각", tier: "info" },
+];
+
+const TIER_STYLE: Record<ConditionTier, { bg: string; color: string }> = {
+	danger: { bg: "#FF6B6B", color: "#111" },
+	warn: { bg: "#FFD43B", color: "#111" },
+	info: { bg: "#E7E3D8", color: "#5E584A" },
+};
+
+/** 물건의 특별 조건 태그 목록 — 우선순위 순서로 반환해요 */
+export function conditionTags(item: AuctionItem): ConditionTag[] {
+	const note = item.note ?? "";
+	const tags: ConditionTag[] = [];
+	for (const r of CONDITION_RULES) {
+		if (note.includes(r.kw)) tags.push({ label: r.label, tier: r.tier });
+	}
+	/* 재매각이면 보증금 20% 가 따라오니 중복 라벨은 생략해요 */
+	if (tags.some((t) => t.label === "재매각")) {
+		return tags.filter((t) => t.label !== "보증금 20%");
+	}
+	return tags;
+}
+
+function ConditionBadge({
+	tag,
+	size = "small",
+}: {
+	tag: ConditionTag;
+	size?: "small" | "medium";
+}) {
 	const md = size === "medium";
+	const s = TIER_STYLE[tag.tier];
 	return (
 		<span
 			style={{
 				fontSize: md ? 12 : 10,
 				fontWeight: 900,
-				color: "#111",
-				backgroundColor: "#FF6B6B",
+				color: s.color,
+				backgroundColor: s.bg,
 				border: "2px solid #111",
 				borderRadius: 7,
 				padding: md ? "3px 8px" : "2px 6px",
@@ -142,8 +182,36 @@ export function ShareBadge({ size = "small" }: { size?: "small" | "medium" }) {
 				lineHeight: 1.2,
 			}}
 		>
-			지분
+			{tag.label}
 		</span>
+	);
+}
+
+/**
+ * 특별 조건 배지들 — 권리관계가 일반 경매와 다른 물건을 눈에 띄게 알려줘요.
+ * `includeInfo=false`면 위험·주의만, `max`로 개수를 제한해요.
+ */
+export function ConditionBadges({
+	item,
+	size = "small",
+	includeInfo = true,
+	max,
+}: {
+	item: AuctionItem;
+	size?: "small" | "medium";
+	includeInfo?: boolean;
+	max?: number;
+}) {
+	let tags = conditionTags(item);
+	if (!includeInfo) tags = tags.filter((t) => t.tier !== "info");
+	if (max != null) tags = tags.slice(0, max);
+	if (tags.length === 0) return null;
+	return (
+		<>
+			{tags.map((t) => (
+				<ConditionBadge key={t.label} tag={t} size={size} />
+			))}
+		</>
 	);
 }
 
@@ -879,7 +947,6 @@ export function AuctionRow({
 	onToggleFav?: () => void;
 	onClick: () => void;
 }) {
-	const isShare = isShareSale(item);
 	const discounted = item.minRate < 100;
 	const areaText =
 		areaUnit === "m2" ? `${item.areaM2}㎡` : `${item.areaPyeong}평`;
@@ -933,11 +1000,12 @@ export function AuctionRow({
 				)}
 			</div>
 
-			{/* 2줄: 최저가 + 할인율 + 지분 경고 */}
+			{/* 2줄: 최저가 + 할인율 + 특별 조건 */}
 			<div
 				style={{
 					display: "flex",
 					alignItems: "center",
+					flexWrap: "wrap",
 					gap: 6,
 					marginBottom: 5,
 				}}
@@ -967,7 +1035,7 @@ export function AuctionRow({
 						감정가 {item.minRate}%
 					</span>
 				)}
-				{isShare && <ShareBadge />}
+				<ConditionBadges item={item} includeInfo={false} />
 			</div>
 
 			{/* 3줄: 면적 · 평당가 · 유찰 · 법원 + 기일 배지 */}
@@ -1017,7 +1085,9 @@ export function DetailSheet({
 	onClose: () => void;
 }) {
 	const dday = item ? dDayLabel(item.saleDate) : null;
-	const isShare = item ? isShareSale(item) : false;
+	const hasDanger = item
+		? conditionTags(item).some((t) => t.tier === "danger")
+		: false;
 
 	/* 상세 열람·체류 로깅 — 3개 호출처를 한 곳에서 처리해요 */
 	useEffect(() => {
@@ -1057,6 +1127,7 @@ export function DetailSheet({
 						style={{
 							display: "flex",
 							alignItems: "baseline",
+							flexWrap: "wrap",
 							gap: 8,
 							marginBottom: 14,
 						}}
@@ -1073,7 +1144,7 @@ export function DetailSheet({
 						>
 							감정가의 {item.minRate}%
 						</span>
-						{isShare && <ShareBadge size="medium" />}
+						<ConditionBadges item={item} size="medium" />
 					</div>
 
 					{/* 관심·기록 액션 */}
@@ -1160,10 +1231,10 @@ export function DetailSheet({
 						<div
 							style={{
 								padding: "10px 12px",
-								backgroundColor: isShare ? "#FFF5F5" : "#F8FAFF",
+								backgroundColor: hasDanger ? "#FFF5F5" : "#F8FAFF",
 								borderRadius: 10,
 								fontSize: 12,
-								color: isShare ? "#C62828" : "#555",
+								color: hasDanger ? "#C62828" : "#555",
 								lineHeight: 1.6,
 							}}
 						>

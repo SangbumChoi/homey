@@ -3,12 +3,11 @@ import { useAuctionStore } from "../store/useAuctionStore";
 import { auctionKey, formatKRW } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import {
+	ConditionBadges,
 	DdayPill,
 	dDayLabel,
 	DetailSheet,
-	isShareSale,
 	rowTitle,
-	ShareBadge,
 	todayStr,
 	type AuctionPreset,
 } from "./AuctionPage";
@@ -252,7 +251,7 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 											{formatKRW(item.minPrice)} ·{" "}
 											{item.saleDate.slice(5).replace("-", ".")}
 										</span>
-										{isShareSale(item) && <ShareBadge />}
+										<ConditionBadges item={item} includeInfo={false} max={1} />
 									</div>
 								</div>
 								<DdayPill saleDate={item.saleDate} />

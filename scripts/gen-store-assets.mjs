@@ -151,13 +151,16 @@ const p1 = portrait(
 const chip = (t, on) =>
 	`<span style="display:inline-flex;align-items:center;padding:8px 14px;border-radius:18px;border:2.5px solid #111;background:${on ? "#FFD43B" : "#fff"};font-size:14px;font-weight:800;white-space:nowrap">${t}</span>`;
 
-const shareBadge = `<span style="font-size:11px;font-weight:900;color:#111;background:#FF6B6B;border:2px solid #111;border-radius:7px;padding:2px 7px;white-space:nowrap">지분</span>`;
-const auctionRow = (addr, area, price, rate, dday, ddayColor, first, share = false) => `
+const TIER_BG = { danger: "#FF6B6B", warn: "#FFD43B", info: "#E7E3D8" };
+const TIER_FG = { danger: "#111", warn: "#111", info: "#5E584A" };
+const condBadge = ([label, tier]) =>
+	`<span style="font-size:11px;font-weight:900;color:${TIER_FG[tier]};background:${TIER_BG[tier]};border:2px solid #111;border-radius:7px;padding:2px 7px;white-space:nowrap">${label}</span>`;
+const auctionRow = (addr, area, price, rate, dday, ddayColor, first, badges = []) => `
 	<div style="display:flex;align-items:center;gap:12px;padding:15px 4px;border-top:${first ? "none" : "1.5px solid #EFEce4"}">
 		<div style="flex:1;min-width:0">
 			<div style="font-size:16px;font-weight:800;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${addr}</div>
 			<div style="font-size:13px;color:#6b6657;margin-top:4px">${area} · 최저가율 ${rate}%</div>
-			<div style="font-size:16px;font-weight:900;color:#111;margin-top:5px;display:flex;align-items:center;gap:7px"><span>${price}</span>${share ? shareBadge : ""}</div>
+			<div style="font-size:16px;font-weight:900;color:#111;margin-top:5px;display:flex;align-items:center;flex-wrap:wrap;gap:7px"><span>${price}</span>${badges.map(condBadge).join("")}</div>
 		</div>
 		<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
 			<span style="background:${ddayColor};border:2.5px solid #111;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:900">${dday}</span>
@@ -182,9 +185,9 @@ const p2 = portrait(
 			${chip("6억 이하", true)}${chip("25~35평", false)}${chip("신건만", false)}${chip("유찰", false)}
 		</div>
 		<div style="margin-top:8px;border:2.5px solid #111;border-radius:16px;background:#fff;padding:4px 14px">
-			${auctionRow("강남구 역삼동 ○○아파트", "84.9㎡ · 25.7평", "최저가 8억 4,800만", 64, "D-3", "#FF6B6B", true)}
-			${auctionRow("송파구 잠실동 △△빌라", "59.8㎡ · 18.1평", "최저가 5억 1,200만", 80, "D-9", "#FFD43B", false, true)}
-			${auctionRow("성남 분당구 정자동 □□", "101.2㎡ · 30.6평", "최저가 9억 7,000만", 72, "D-14", "#B6F09C", false)}
+			${auctionRow("강남구 역삼동 ○○아파트", "84.9㎡ · 25.7평", "최저가 8억 4,800만", 64, "D-3", "#FF6B6B", true, [["일괄매각", "info"]])}
+			${auctionRow("송파구 잠실동 △△빌라", "59.8㎡ · 18.1평", "최저가 5억 1,200만", 80, "D-9", "#FFD43B", false, [["지분", "danger"]])}
+			${auctionRow("성남 분당구 정자동 □□", "101.2㎡ · 30.6평", "최저가 9억 7,000만", 72, "D-14", "#B6F09C", false, [["제시외 건물", "warn"]])}
 		</div>
 		<div style="display:flex;justify-content:flex-end;margin-top:12px">
 			<span style="border:2.5px solid #111;border-radius:12px;background:#FFD43B;padding:8px 14px;font-size:13px;font-weight:900" class="shadow-sm">최저가율 ↓ 정렬</span>
