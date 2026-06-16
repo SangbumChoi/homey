@@ -291,15 +291,8 @@ export function AuctionTab({
 	preset?: AuctionPreset | null;
 	onPresetApplied?: () => void;
 } = {}) {
-	const {
-		items,
-		dataDate,
-		lastUploadAt,
-		importItems,
-		reset,
-		favorites,
-		toggleFavorite,
-	} = useAuctionStore();
+	const { items, dataDate, importItems, favorites, toggleFavorite } =
+		useAuctionStore();
 
 	/* 필터 상태 */
 	const [region, setRegion] = useState<string | null>(null);
@@ -668,20 +661,6 @@ export function AuctionTab({
 					</>
 				)}
 
-				{lastUploadAt && (
-					<div style={{ textAlign: "center", marginTop: 16 }}>
-						<TextButton
-							size="xsmall"
-							color={colors.grey500}
-							onClick={() => {
-								if (confirm("데이터를 앱에 포함된 기본본으로 되돌릴까요?"))
-									reset();
-							}}
-						>
-							데이터 초기화
-						</TextButton>
-					</div>
-				)}
 			</div>
 
 			{/* ── 지역 시트 ── */}

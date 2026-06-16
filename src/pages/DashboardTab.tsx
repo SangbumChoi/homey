@@ -633,7 +633,7 @@ function PriceDistChart({ items }: { items: AuctionItem[] }) {
 		return (
 			<EmptyCard
 				icon={<ChartIcon size={30} />}
-				text={"새 엑셀을 업로드하면 진행 물건의\n가격 분포를 보여드려요"}
+				text={"진행 중인 경매 물건이 모이면\n가격 분포를 보여드려요"}
 			/>
 		);
 	}

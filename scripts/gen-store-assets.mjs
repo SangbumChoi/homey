@@ -255,7 +255,7 @@ const landscape = base(
 				<div style="font-size:96px;font-weight:900;letter-spacing:-4px">호미</div>
 			</div>
 			<div style="display:inline-block;margin-top:26px;background:#111;color:#fff;border-radius:16px;padding:12px 22px;font-size:26px;font-weight:800">법원경매 탐색 · 비교 · 기록</div>
-			<p style="font-size:23px;font-weight:600;color:#3D3A33;margin-top:26px;line-height:1.5">매주 받는 경매 엑셀을 올리면<br>물건을 필터·정렬·비교하고 임장·입찰까지 한곳에서.</p>
+			<p style="font-size:23px;font-weight:600;color:#3D3A33;margin-top:26px;line-height:1.5">서울·성남 법원경매를 매일 업데이트<br>물건을 필터·정렬·비교하고 임장·입찰까지 한곳에서.</p>
 		</div>
 		<!-- 우측 미니 카드들 -->
 		<div style="position:absolute;right:70px;top:0;width:720px;height:741px">
