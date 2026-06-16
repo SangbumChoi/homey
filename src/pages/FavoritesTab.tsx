@@ -7,6 +7,8 @@ import {
 	DetailSheet,
 	dDayLabel,
 	displayName,
+	isShareSale,
+	ShareBadge,
 	shortCourt,
 } from "./AuctionPage";
 import { StarIcon } from "../components/icons";
@@ -223,6 +225,11 @@ function CompareTable({
 								}}
 							>
 								{displayName(item)}
+									{isShareSale(item) && (
+										<span style={{ display: "inline-block", marginTop: 4 }}>
+											<ShareBadge />
+										</span>
+									)}
 							</th>
 						))}
 					</tr>

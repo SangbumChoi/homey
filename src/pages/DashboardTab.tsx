@@ -6,7 +6,9 @@ import {
 	DdayPill,
 	dDayLabel,
 	DetailSheet,
+	isShareSale,
 	rowTitle,
+	ShareBadge,
 	todayStr,
 	type AuctionPreset,
 } from "./AuctionPage";
@@ -237,10 +239,20 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 										{rowTitle(item)}
 									</div>
 									<div
-										style={{ fontSize: 12, color: "#555", marginTop: 3 }}
+										style={{
+											fontSize: 12,
+											color: "#555",
+											marginTop: 3,
+											display: "flex",
+											alignItems: "center",
+											gap: 6,
+										}}
 									>
-										{formatKRW(item.minPrice)} ·{" "}
-										{item.saleDate.slice(5).replace("-", ".")}
+										<span>
+											{formatKRW(item.minPrice)} ·{" "}
+											{item.saleDate.slice(5).replace("-", ".")}
+										</span>
+										{isShareSale(item) && <ShareBadge />}
 									</div>
 								</div>
 								<DdayPill saleDate={item.saleDate} />

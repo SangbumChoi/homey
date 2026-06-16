@@ -119,6 +119,34 @@ export function displayName(item: AuctionItem): string {
 	return buildingName(item.address) ?? shortAddress(item.address);
 }
 
+/** 지분매각 여부 — 비고에 "지분"이 들어가면 공유지분 매각이에요 */
+export function isShareSale(item: AuctionItem): boolean {
+	return item.note?.includes("지분") ?? false;
+}
+
+/** 지분매각 배지 — 권리관계가 일반 경매와 다르니 눈에 띄게 알려줘요 */
+export function ShareBadge({ size = "small" }: { size?: "small" | "medium" }) {
+	const md = size === "medium";
+	return (
+		<span
+			style={{
+				fontSize: md ? 12 : 10,
+				fontWeight: 900,
+				color: "#111",
+				backgroundColor: "#FF6B6B",
+				border: "2px solid #111",
+				borderRadius: 7,
+				padding: md ? "3px 8px" : "2px 6px",
+				whiteSpace: "nowrap",
+				flexShrink: 0,
+				lineHeight: 1.2,
+			}}
+		>
+			지분
+		</span>
+	);
+}
+
 export function todayStr(): string {
 	const d = new Date();
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -851,7 +879,7 @@ export function AuctionRow({
 	onToggleFav?: () => void;
 	onClick: () => void;
 }) {
-	const isShare = item.note?.includes("지분") ?? false;
+	const isShare = isShareSale(item);
 	const discounted = item.minRate < 100;
 	const areaText =
 		areaUnit === "m2" ? `${item.areaM2}㎡` : `${item.areaPyeong}평`;
@@ -939,21 +967,7 @@ export function AuctionRow({
 						감정가 {item.minRate}%
 					</span>
 				)}
-				{isShare && (
-					<span
-						style={{
-							fontSize: 10,
-							fontWeight: 900,
-							color: "#111",
-							backgroundColor: "#FF6B6B",
-							border: "2px solid #111",
-							borderRadius: 7,
-							padding: "2px 6px",
-						}}
-					>
-						지분
-					</span>
-				)}
+				{isShare && <ShareBadge />}
 			</div>
 
 			{/* 3줄: 면적 · 평당가 · 유찰 · 법원 + 기일 배지 */}
@@ -1003,7 +1017,7 @@ export function DetailSheet({
 	onClose: () => void;
 }) {
 	const dday = item ? dDayLabel(item.saleDate) : null;
-	const isShare = item?.note?.includes("지분") ?? false;
+	const isShare = item ? isShareSale(item) : false;
 
 	/* 상세 열람·체류 로깅 — 3개 호출처를 한 곳에서 처리해요 */
 	useEffect(() => {
@@ -1059,6 +1073,7 @@ export function DetailSheet({
 						>
 							감정가의 {item.minRate}%
 						</span>
+						{isShare && <ShareBadge size="medium" />}
 					</div>
 
 					{/* 관심·기록 액션 */}
