@@ -1,6 +1,9 @@
 // 앱 스토어/앱인토스 등록용 스크린샷·썸네일 생성기
-// Pretendard(로컬) + Playwright Chromium 으로 정확한 픽셀 크기 PNG 를 렌더해요.
+// Pretendard(jsDelivr CDN) + Playwright Chromium 으로 정확한 픽셀 크기 PNG 를 렌더해요.
 //   세로형 3장 636x1048 / 가로형 1장 1504x741 / 썸네일 1942x828
+// 참고: pretendard 는 폰트 전용 패키지(JS 진입점 없음)라 npm 의존성으로 두면
+//   AIT(RN) 빌드의 버전 수집 플러그인이 'import pretendard' 해석에 실패해요.
+//   그래서 의존성에서 빼고, 이 스크립트만 CDN 으로 폰트를 받아요.
 import { chromium } from "playwright";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -11,7 +14,7 @@ const OUT = resolve(ROOT, "brand/store");
 mkdirSync(OUT, { recursive: true });
 
 const F = (w) =>
-	`file://${ROOT}/node_modules/pretendard/dist/web/static/woff2/Pretendard-${w}.woff2`;
+	`https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-${w}.woff2`;
 const LOGO = `file://${ROOT}/brand/logo-base-light.png`;
 
 const fontFace = `
