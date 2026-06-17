@@ -112,37 +112,61 @@ async function waitForSearchResponse(page, action) {
 	};
 }
 
-/** 페이지 크기 옵션 중 가장 큰 값으로 키워요 (페이지 수를 줄여 누락 위험 ↓) */
+const DAY_MS = 86_400_000;
+const pageGroupMax = Number(process.env.CRAWL_PAGE_GROUP || 10);
+
+function dayMs(dot) {
+	const [y, m, d] = String(dot).split(".").map(Number);
+	return Date.UTC(y, m - 1, d);
+}
+function dotOf(ms) {
+	const d = new Date(ms);
+	const p = (n) => String(n).padStart(2, "0");
+	return `${d.getUTCFullYear()}.${p(d.getUTCMonth() + 1)}.${p(d.getUTCDate())}`;
+}
+/** start~end(포함) 사이 매일을 "YYYY.MM.DD"로 */
+function eachDay(start, end) {
+	const days = [];
+	for (let ms = dayMs(start); ms <= dayMs(end); ms += DAY_MS) days.push(dotOf(ms));
+	return days;
+}
+
+/** 페이지 크기를 옵션 최댓값으로 키워요. { size, result } (값은 이후 검색에도 유지돼요) */
 async function maximizePageSize(page) {
 	const sel = page.locator("#mf_wfm_mainFrame_sbx_pageSize");
-	if (!(await sel.count())) return null;
+	if (!(await sel.count())) return { size: 0, result: null };
 	const labels = await sel.locator("option").allInnerTexts().catch(() => []);
 	const nums = labels
 		.map((t) => Number(String(t).replace(/\D/g, "")))
 		.filter((n) => n > 0);
-	if (!nums.length) return null;
+	if (!nums.length) return { size: 0, result: null };
 	const max = Math.max(...nums);
-	const res = await waitForSearchResponse(page, () =>
+	const result = await waitForSearchResponse(page, () =>
 		sel.selectOption(String(max)),
 	).catch(() => null);
-	return res ? { rows: res.rows, size: max } : null;
+	await page.waitForTimeout(500);
+	return { size: max, result };
 }
 
-/**
- * pageNo 페이지로 이동해 그 페이지의 행을 반환해요.
- * 번호 링크가 현재 그룹에 없으면 '다음(»)' 버튼으로 다음 그룹을 펼친 뒤 다시 찾아요.
- */
-async function goToPage(page, pageNo) {
-	const pager = page.locator("#mf_wfm_mainFrame_pgl_gdsDtlSrchPage");
-	let link = pager.getByText(String(pageNo), { exact: true });
-	if (!(await link.count())) {
-		const next = pager.locator("a, button").filter({ hasText: /다음|»|＞|>|next/i });
-		if (await next.count()) {
-			await waitForSearchResponse(page, () => next.last().click()).catch(() => {});
-			await page.waitForTimeout(600);
-			link = pager.getByText(String(pageNo), { exact: true });
-		}
-	}
+/** 현재 검색조건으로 1페이지 검색 */
+async function searchOnce(page) {
+	const res = await waitForSearchResponse(page, () =>
+		page.locator("#mf_wfm_mainFrame_btn_gdsDtlSrch").click(),
+	);
+	await page.waitForTimeout(700);
+	return res;
+}
+
+async function setDateRange(page, start, end) {
+	await fillInput(page, "mf_wfm_mainFrame_cal_rletPerdStr_input", start);
+	await fillInput(page, "mf_wfm_mainFrame_cal_rletPerdEnd_input", end);
+}
+
+/** 첫 페이지그룹 안의 번호 링크로만 이동 (그룹 밖은 일자분할로 대체) */
+async function clickPage(page, pageNo) {
+	const link = page
+		.locator("#mf_wfm_mainFrame_pgl_gdsDtlSrchPage")
+		.getByText(String(pageNo), { exact: true });
 	if (!(await link.count())) return null;
 	const res = await waitForSearchResponse(page, () => link.first().click()).catch(
 		() => null,
@@ -150,35 +174,24 @@ async function goToPage(page, pageNo) {
 	return res?.rows ?? null;
 }
 
-async function collectExtraPages(page, initial) {
+/**
+ * 첫 페이지그룹 범위 안에서 가능한 만큼 모아요.
+ * 반환 complete=false면 결과가 도달 범위를 넘었다는 뜻 → 호출부가 일자별로 쪼개요.
+ */
+async function collectWithinReach(page, initial, size) {
 	const unique = new Map(initial.rows.map((row) => [rowKey(row), row]));
 	const total = Number(initial.pageInfo?.totalCnt || initial.rows.length);
-	if (total <= unique.size) return [...unique.values()];
-
-	let size = initial.rows.length || 40;
-	const enlarged = await maximizePageSize(page);
-	if (enlarged) {
-		for (const row of enlarged.rows) unique.set(rowKey(row), row);
-		size = enlarged.size;
-	}
-
-	const pageCount = Math.ceil(total / size);
-	const maxPages = Number(process.env.CRAWL_MAX_PAGES || pageCount);
-	for (let pageNo = 2; pageNo <= Math.min(pageCount, maxPages); pageNo += 1) {
+	const per = size || initial.rows.length || 40;
+	const pageCount = Math.min(Math.ceil(total / per), pageGroupMax);
+	for (let pageNo = 2; pageNo <= pageCount; pageNo += 1) {
 		const before = unique.size;
-		const rows = await goToPage(page, pageNo);
-		if (rows == null) break; // 다음 그룹 이동 실패 — 더 못 감
+		const rows = await clickPage(page, pageNo);
+		if (rows == null) break;
 		for (const row of rows) unique.set(rowKey(row), row);
-		if (unique.size === before) break; // 진전이 없으면 중단
-		await page.waitForTimeout(800);
+		if (unique.size === before) break;
+		await page.waitForTimeout(300);
 	}
-
-	if (unique.size < total) {
-		console.warn(
-			`  ⚠ 페이지네이션 누락 가능 — 수집 ${unique.size}/${total} (다음그룹 이동 실패 또는 CRAWL_MAX_PAGES 상한)`,
-		);
-	}
-	return [...unique.values()];
+	return { rows: [...unique.values()], total, complete: unique.size >= total };
 }
 
 async function crawlTarget(target) {
@@ -199,8 +212,7 @@ async function crawlTarget(target) {
 		await page
 			.locator("#mf_wfm_mainFrame_rad_rletSrchBtn_input_1")
 			.check({ timeout: 20000, force: true });
-		await fillInput(page, "mf_wfm_mainFrame_cal_rletPerdStr_input", startDate);
-		await fillInput(page, "mf_wfm_mainFrame_cal_rletPerdEnd_input", endDate);
+		await setDateRange(page, startDate, endDate);
 		await selectLabel(page, "mf_wfm_mainFrame_sbx_rletAdongSdS", target.sido, 1400);
 		if (target.sigungu) {
 			await selectLabel(page, "mf_wfm_mainFrame_sbx_rletAdongSggS", target.sigungu);
@@ -208,15 +220,42 @@ async function crawlTarget(target) {
 			await selectSigunguAll(page);
 		}
 
-		const initial = await waitForSearchResponse(page, () =>
-			page.locator("#mf_wfm_mainFrame_btn_gdsDtlSrch").click(),
-		);
-		await page.waitForTimeout(2000);
-		const rows = await collectExtraPages(page, initial);
-		console.log(
-			`done ${target.sido} ${where} total=${initial.pageInfo?.totalCnt || rows.length} rows=${rows.length}`,
-		);
-		return { ...target, ...initial, rows };
+		// 1) 전체 기간 한 번에 — 작은 지역은 이걸로 끝나요.
+		const first = await searchOnce(page);
+		let size = 0;
+		let base = first;
+		if (Number(first.pageInfo?.totalCnt || 0) > first.rows.length) {
+			const enlarged = await maximizePageSize(page);
+			if (enlarged.result) {
+				base = enlarged.result;
+				size = enlarged.size;
+			}
+		}
+		const ranged = await collectWithinReach(page, base, size);
+		const unique = new Map(ranged.rows.map((row) => [rowKey(row), row]));
+
+		// 2) 400개 상한처럼 다 못 받으면 매각일별로 쪼개서 전부 모아요.
+		if (!ranged.complete) {
+			console.log(
+				`  split-by-date ${target.sido} ${where}: 전체기간 ${ranged.rows.length}/${ranged.total} → 일자별 재수집`,
+			);
+			for (const day of eachDay(startDate, endDate)) {
+				await setDateRange(page, day, day);
+				const dayInit = await searchOnce(page);
+				const dayRes = await collectWithinReach(page, dayInit, size);
+				for (const row of dayRes.rows) unique.set(rowKey(row), row);
+				if (!dayRes.complete) {
+					console.warn(
+						`  ⚠ ${day} ${target.sido} 단일일자 초과 ${dayRes.rows.length}/${dayRes.total}`,
+					);
+				}
+			}
+		}
+
+		const rows = [...unique.values()];
+		const short = rows.length < ranged.total ? ` (기대 ${ranged.total})` : "";
+		console.log(`done ${target.sido} ${where} rows=${rows.length}${short}`);
+		return { ...target, rows };
 	} catch (error) {
 		console.error(`error ${target.sido} ${where}: ${error.message}`);
 		return { ...target, error: error.message, rows: [] };
