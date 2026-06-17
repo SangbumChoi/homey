@@ -97,10 +97,10 @@ async function fillInput(page, id, value) {
 	});
 }
 
-async function waitForSearchResponse(page, action) {
+async function waitForSearchResponse(page, action, timeout = 30000) {
 	const responsePromise = page.waitForResponse(
 		(response) => response.url().includes("/pgj/pgjsearch/searchControllerMain.on"),
-		{ timeout: 30000 },
+		{ timeout },
 	);
 	await action();
 	const response = await responsePromise;
@@ -112,26 +112,12 @@ async function waitForSearchResponse(page, action) {
 	};
 }
 
-const DAY_MS = 86_400_000;
-const pageGroupMax = Number(process.env.CRAWL_PAGE_GROUP || 10);
+const pagerSel = "#mf_wfm_mainFrame_pgl_gdsDtlSrchPage";
+// 페이지 번호 줄(1~10) 아래의 '다음(그룹/페이지)' 버튼. 끝(control_last)은 안 써요.
+const nextBtnSel =
+	"a.w2pageList_control_next, a[class*='control_next'], a[title*='다음'], a[aria-label*='다음']";
 
-function dayMs(dot) {
-	const [y, m, d] = String(dot).split(".").map(Number);
-	return Date.UTC(y, m - 1, d);
-}
-function dotOf(ms) {
-	const d = new Date(ms);
-	const p = (n) => String(n).padStart(2, "0");
-	return `${d.getUTCFullYear()}.${p(d.getUTCMonth() + 1)}.${p(d.getUTCDate())}`;
-}
-/** start~end(포함) 사이 매일을 "YYYY.MM.DD"로 */
-function eachDay(start, end) {
-	const days = [];
-	for (let ms = dayMs(start); ms <= dayMs(end); ms += DAY_MS) days.push(dotOf(ms));
-	return days;
-}
-
-/** 페이지 크기를 옵션 최댓값으로 키워요. { size, result } (값은 이후 검색에도 유지돼요) */
+/** 페이지 크기를 옵션 최댓값으로 키워요(클릭 수↓). { size, result } */
 async function maximizePageSize(page) {
 	const sel = page.locator("#mf_wfm_mainFrame_sbx_pageSize");
 	if (!(await sel.count())) return { size: 0, result: null };
@@ -162,36 +148,64 @@ async function setDateRange(page, start, end) {
 	await fillInput(page, "mf_wfm_mainFrame_cal_rletPerdEnd_input", end);
 }
 
-/** 첫 페이지그룹 안의 번호 링크로만 이동 (그룹 밖은 일자분할로 대체) */
-async function clickPage(page, pageNo) {
-	const link = page
-		.locator("#mf_wfm_mainFrame_pgl_gdsDtlSrchPage")
-		.getByText(String(pageNo), { exact: true });
-	if (!(await link.count())) return null;
-	const res = await waitForSearchResponse(page, () => link.first().click()).catch(
-		() => null,
-	);
-	return res?.rows ?? null;
-}
-
 /**
- * 첫 페이지그룹 범위 안에서 가능한 만큼 모아요.
- * 반환 complete=false면 결과가 도달 범위를 넘었다는 뜻 → 호출부가 일자별로 쪼개요.
+ * 보이는 페이지 번호(1~10)를 모두 누른 뒤 '다음' 버튼으로 다음 묶음을 펼치고,
+ * 끝(다음 버튼 비활성/소멸 또는 진전 없음)까지 반복해 전부 모아요.
  */
-async function collectWithinReach(page, initial, size) {
+async function paginateAll(page, initial, size) {
 	const unique = new Map(initial.rows.map((row) => [rowKey(row), row]));
 	const total = Number(initial.pageInfo?.totalCnt || initial.rows.length);
 	const per = size || initial.rows.length || 40;
-	const pageCount = Math.min(Math.ceil(total / per), pageGroupMax);
-	for (let pageNo = 2; pageNo <= pageCount; pageNo += 1) {
+	const pager = page.locator(pagerSel);
+	const visited = new Set();
+	const maxGuard = Math.ceil(total / per) + 30;
+
+	for (let guard = 0; unique.size < total && guard < maxGuard; guard += 1) {
 		const before = unique.size;
-		const rows = await clickPage(page, pageNo);
-		if (rows == null) break;
-		for (const row of rows) unique.set(rowKey(row), row);
-		if (unique.size === before) break;
-		await page.waitForTimeout(300);
+
+		// 현재 묶음의 숫자 페이지를 모두 눌러서 수집 (이미 방문한 번호/현재 페이지는 건너뜀)
+		const numbers = await pager
+			.locator("a")
+			.filter({ hasText: /^\s*\d+\s*$/ })
+			.allInnerTexts()
+			.catch(() => []);
+		for (const raw of numbers) {
+			const label = raw.trim();
+			if (visited.has(label)) continue;
+			visited.add(label);
+			// 현재 페이지를 다시 누르면 응답이 없을 수 있어 짧게 기다리고 넘어가요.
+			const res = await waitForSearchResponse(
+				page,
+				() => pager.getByText(label, { exact: true }).first().click(),
+				7000,
+			).catch(() => null);
+			if (res) for (const row of res.rows) unique.set(rowKey(row), row);
+			await page.waitForTimeout(150);
+		}
+
+		// 다음 묶음으로
+		const next = page.locator(nextBtnSel).first();
+		if (!(await next.count())) break;
+		const disabled = await next
+			.evaluate(
+				(el) =>
+					el.getAttribute("aria-disabled") === "true" ||
+					/disabled/i.test(el.className) ||
+					el.getAttribute("disabled") != null,
+			)
+			.catch(() => false);
+		if (disabled) break;
+		const moved = await waitForSearchResponse(page, () => next.click(), 12000).catch(
+			() => null,
+		);
+		if (moved) for (const row of moved.rows) unique.set(rowKey(row), row);
+		if (unique.size === before) break; // 더 이상 진전 없음
 	}
-	return { rows: [...unique.values()], total, complete: unique.size >= total };
+
+	if (unique.size < total) {
+		console.warn(`  ⚠ 페이지네이션 누락 가능 — ${unique.size}/${total}`);
+	}
+	return { rows: [...unique.values()], total };
 }
 
 async function crawlTarget(target) {
@@ -220,7 +234,7 @@ async function crawlTarget(target) {
 			await selectSigunguAll(page);
 		}
 
-		// 1) 전체 기간 한 번에 — 작은 지역은 이걸로 끝나요.
+		// 전체 기간을 검색하고, 페이지 크기를 최대로 키운 뒤 '다음' 버튼으로 끝까지 모아요.
 		const first = await searchOnce(page);
 		let size = 0;
 		let base = first;
@@ -231,29 +245,10 @@ async function crawlTarget(target) {
 				size = enlarged.size;
 			}
 		}
-		const ranged = await collectWithinReach(page, base, size);
-		const unique = new Map(ranged.rows.map((row) => [rowKey(row), row]));
+		const collected = await paginateAll(page, base, size);
 
-		// 2) 400개 상한처럼 다 못 받으면 매각일별로 쪼개서 전부 모아요.
-		if (!ranged.complete) {
-			console.log(
-				`  split-by-date ${target.sido} ${where}: 전체기간 ${ranged.rows.length}/${ranged.total} → 일자별 재수집`,
-			);
-			for (const day of eachDay(startDate, endDate)) {
-				await setDateRange(page, day, day);
-				const dayInit = await searchOnce(page);
-				const dayRes = await collectWithinReach(page, dayInit, size);
-				for (const row of dayRes.rows) unique.set(rowKey(row), row);
-				if (!dayRes.complete) {
-					console.warn(
-						`  ⚠ ${day} ${target.sido} 단일일자 초과 ${dayRes.rows.length}/${dayRes.total}`,
-					);
-				}
-			}
-		}
-
-		const rows = [...unique.values()];
-		const short = rows.length < ranged.total ? ` (기대 ${ranged.total})` : "";
+		const rows = collected.rows;
+		const short = rows.length < collected.total ? ` (기대 ${collected.total})` : "";
 		console.log(`done ${target.sido} ${where} rows=${rows.length}${short}`);
 		return { ...target, rows };
 	} catch (error) {
