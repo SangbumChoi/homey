@@ -79,6 +79,29 @@ async function selectLabel(page, id, label, settleMs = 900) {
 	await page.waitForTimeout(settleMs);
 }
 
+/** 시도 라벨이 사이트 표기와 달라도(자치도 개편 등) 골라요. 실패 시 후보를 알려줘요. */
+const SIDO_ALIASES = {
+	강원특별자치도: ["강원특별자치도", "강원도"],
+	전북특별자치도: ["전북특별자치도", "전라북도"],
+	제주특별자치도: ["제주특별자치도", "제주도"],
+};
+async function selectSido(page, sido) {
+	const sel = page.locator("#mf_wfm_mainFrame_sbx_rletAdongSdS");
+	for (const label of [sido, ...(SIDO_ALIASES[sido] || [])]) {
+		try {
+			await sel.selectOption({ label }, { timeout: 6000 });
+			await page.waitForTimeout(1400);
+			return;
+		} catch {
+			// 다음 후보 라벨 시도
+		}
+	}
+	const opts = (await sel.locator("option").allInnerTexts().catch(() => []))
+		.map((t) => t.trim())
+		.filter(Boolean);
+	throw new Error(`시도 옵션 못 찾음: "${sido}" (사이트 후보: ${opts.join(", ")})`);
+}
+
 /** 시군구를 '전체'로 — 시도 전체를 한 번에 검색해요 (없으면 첫 옵션) */
 async function selectSigunguAll(page) {
 	const sel = page.locator("#mf_wfm_mainFrame_sbx_rletAdongSggS");
@@ -227,7 +250,7 @@ async function crawlTarget(target) {
 			.locator("#mf_wfm_mainFrame_rad_rletSrchBtn_input_1")
 			.check({ timeout: 20000, force: true });
 		await setDateRange(page, startDate, endDate);
-		await selectLabel(page, "mf_wfm_mainFrame_sbx_rletAdongSdS", target.sido, 1400);
+		await selectSido(page, target.sido);
 		if (target.sigungu) {
 			await selectLabel(page, "mf_wfm_mainFrame_sbx_rletAdongSggS", target.sigungu);
 		} else {
@@ -330,11 +353,17 @@ for (const target of targets) {
 const failures = results.filter((result) => result.error);
 if (failures.length) {
 	await writeOutputs(results, false);
-	throw new Error(
-		`Crawl incomplete; not publishing. Failed locations: ${failures
-			.map((result) => `${result.sido} ${result.sigungu ?? "전체"}`)
-			.join(", ")}`,
-	);
+	const detail = failures
+		.map((result) => `  - ${result.sido} ${result.sigungu ?? "전체"}: ${result.error}`)
+		.join("\n");
+	if (process.env.CRAWL_ALLOW_PARTIAL === "true") {
+		console.warn(`⚠ ${failures.length}개 지역 실패 — 부분 발행 진행:\n${detail}`);
+	} else {
+		throw new Error(
+			`Crawl incomplete; not publishing. ${failures.length}개 지역 실패:\n${detail}\n` +
+				`(성공분만 발행하려면 CRAWL_ALLOW_PARTIAL=true)`,
+		);
+	}
 }
 
 const total = await writeOutputs(results, true);
