@@ -61,11 +61,53 @@ export function buildAddress(row) {
 		.trim();
 }
 
-/** 지역 라벨 (서울 / 성남 OO구) */
+/** 시도 정식명 → 짧은 라벨 (전국 지역 필터용) */
+const SIDO_SHORT = {
+	서울특별시: "서울",
+	부산광역시: "부산",
+	대구광역시: "대구",
+	인천광역시: "인천",
+	광주광역시: "광주",
+	대전광역시: "대전",
+	울산광역시: "울산",
+	세종특별자치시: "세종",
+	경기도: "경기",
+	강원도: "강원",
+	강원특별자치도: "강원",
+	충청북도: "충북",
+	충청남도: "충남",
+	전라북도: "전북",
+	전북특별자치도: "전북",
+	전라남도: "전남",
+	경상북도: "경북",
+	경상남도: "경남",
+	제주도: "제주",
+	제주특별자치도: "제주",
+};
+
+/** 시도 정식명 → 짧은 라벨 (모르는 이름은 접미사만 떼어내요) */
+export function sidoShort(sido) {
+	const name = String(sido || "").trim();
+	if (!name) return "";
+	return (
+		SIDO_SHORT[name] ||
+		name.replace(/(특별자치시|특별자치도|특별시|광역시|자치도)$/u, "")
+	);
+}
+
+/**
+ * 지역 라벨 — 전국 대응.
+ * 서울은 "서울", 성남은 "성남 OO구"(운영자 우선순위 유지), 그 외는 시도 짧은 라벨이에요.
+ */
 export function regionFor(row) {
-	if (row.hjguSido === "서울특별시") return "서울";
-	const district = String(row.hjguSigu || "").replace("성남시 ", "");
-	return district ? `성남 ${district}` : "성남";
+	const sido = String(row.hjguSido || "").trim();
+	if (sido === "서울특별시") return "서울";
+	const sigu = String(row.hjguSigu || "").trim();
+	if (sido === "경기도" && sigu.startsWith("성남시")) {
+		const district = sigu.replace("성남시 ", "");
+		return district ? `성남 ${district}` : "성남";
+	}
+	return sidoShort(sido) || "기타";
 }
 
 /** 원본 행 → 호미 13컬럼 행 */
@@ -91,12 +133,15 @@ export function toHomeyRow(row) {
 	};
 }
 
-/** 서울/성남 건수 집계 */
+/** 지역 건수 집계 (서울/성남 + 시도별 — 전국 대응) */
 export function countRegions(rows) {
-	const counts = { seoul: 0, seongnam: 0, seongnamDistricts: {} };
+	const counts = { seoul: 0, seongnam: 0, seongnamDistricts: {}, bySido: {} };
 	for (const row of rows) {
-		if (row.hjguSido === "서울특별시") counts.seoul += 1;
-		if (row.hjguSido === "경기도" && String(row.hjguSigu).startsWith("성남시")) {
+		const sido = String(row.hjguSido || "").trim();
+		const label = sidoShort(sido) || "기타";
+		counts.bySido[label] = (counts.bySido[label] || 0) + 1;
+		if (sido === "서울특별시") counts.seoul += 1;
+		if (sido === "경기도" && String(row.hjguSigu).startsWith("성남시")) {
 			counts.seongnam += 1;
 			counts.seongnamDistricts[row.hjguSigu] =
 				(counts.seongnamDistricts[row.hjguSigu] || 0) + 1;

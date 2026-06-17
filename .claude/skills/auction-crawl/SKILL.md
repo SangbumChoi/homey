@@ -60,6 +60,31 @@ CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" npm r
 
 성공하면 `auction-data/`가 갱신돼요. 앱은 `latest.xlsx`를 원격에서 받아 병합해요.
 
+### 수집 범위 (기본 서울+성남 / 전국 opt-in)
+`CRAWL_SCOPE`로 범위를 정해요.
+
+```bash
+npm run crawl:auctions                       # 기본: 서울 25구 + 성남 3구 (시군구 단위)
+CRAWL_SCOPE=nationwide npm run crawl:auctions # 전국: 시도 17개 단위 (시군구 '전체')
+CRAWL_SCOPE=nationwide CRAWL_TARGET_LIMIT=2 HEADLESS=false npm run crawl:auctions  # 2개 시도만 눈으로 검증
+```
+
+- 시도 단위는 타깃이 250→17로 줄어 시간·실패가 크게 감소해요.
+- 시도당 수천 건이라 페이지네이션이 핵심: `collectExtraPages`가 페이지 크기를
+  최대로 키우고 '다음(»)' 그룹까지 순회해요. 끝까지 못 가면 `⚠ 페이지네이션
+  누락 가능` 경고를 찍어요(조용한 누락 방지). `CRAWL_MAX_PAGES`로 상한을 둘 수 있어요.
+- **전국 전환 전 맥에서 검증할 것 2가지** (지오차단 때문에 본인 맥에서만 가능):
+  1. **시군구 '전체' 검색이 시도 전체를 반환하는지** — `selectSigunguAll`이 첫
+     옵션/'전체'를 고르는데, 사이트가 시군구 필수면 시도별로 시군구를 다시
+     순회해야 해요(전략 재고).
+  2. **'다음 그룹(»)' 버튼 셀렉터** — `goToPage`의 next 버튼 매칭(`다음|»|＞|>`)이
+     실제 DOM과 맞는지. 경고가 자주 뜨면 셀렉터를 조정하세요.
+- 검증되면 워크플로(`crawl-auctions.yml`)에 `CRAWL_SCOPE: nationwide`를 넣어 전환해요.
+  17타깃이라도 all-or-nothing 발행이라, 전국에서 잦은 실패가 보이면 부분 발행
+  허용을 따로 고려하세요.
+- 지역 라벨은 `regionFor`가 전국 대응(서울/성남은 상세 유지, 그 외 시도 짧은 라벨)이라
+  scope와 무관하게 동작해요.
+
 ### 오프라인 재생성 (크롤 불가 환경)
 이미 수집한 raw로 동일 구조를 다시 만들어요.
 

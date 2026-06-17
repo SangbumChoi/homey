@@ -4,6 +4,7 @@ import { auctionKey, formatKRW, pricePerPyeong } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import {
 	AuctionRow,
+	ConditionBadges,
 	DetailSheet,
 	dDayLabel,
 	displayName,
@@ -223,6 +224,16 @@ function CompareTable({
 								}}
 							>
 								{displayName(item)}
+									<span
+										style={{
+											display: "flex",
+											flexWrap: "wrap",
+											gap: 4,
+											marginTop: 5,
+										}}
+									>
+										<ConditionBadges item={item} includeInfo={false} />
+									</span>
 							</th>
 						))}
 					</tr>

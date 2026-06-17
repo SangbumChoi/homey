@@ -26,6 +26,15 @@ import {
 
 const SALE_DATE_RE = /^20\d{2}-\d{2}-\d{2}$/;
 
+/** 요약 시트용 지역 라벨 — 수집된 시도별 건수를 많은 순으로 (예: "서울 1838, 경기 106") */
+function regionLabelFor(rows) {
+	const { bySido } = countRegions(rows);
+	const parts = Object.entries(bySido)
+		.sort((a, b) => b[1] - a[1])
+		.map(([name, n]) => `${name} ${n}`);
+	return parts.join(", ") || "-";
+}
+
 function hashRows(nativeRows) {
 	const homey = nativeRows
 		.map(toHomeyRow)
@@ -87,7 +96,7 @@ export function publishAuctionData(rows, opts = {}) {
 		} else {
 			const wb = buildWorkbook(saleRows, [
 				["매각기일", saleDate, "해당 날짜에 예정된 물건", crawlDate],
-				["조회 지역", "서울특별시 + 성남시", "서울 25개 구, 성남 3개 구", ""],
+				["조회 지역", regionLabelFor(saleRows), "시도별 건수", ""],
 				["필터", "지역만 적용", "가격·면적·물건종류 제한 없음", ""],
 				["총 물건 수", saleRows.length, "중복 제거 후", ""],
 			]);
@@ -118,7 +127,7 @@ export function publishAuctionData(rows, opts = {}) {
 
 	// latest.xlsx = 이번 수집 전체 (앱이 읽는 파일)
 	const latestWb = buildWorkbook(rows, [
-		["조회 지역", "서울특별시 + 성남시", "서울 25개 구, 성남 3개 구", crawlDate],
+		["조회 지역", regionLabelFor(rows), "수집된 시도별 건수", crawlDate],
 		[
 			"조회 기간",
 			`${query.startDate ?? ""} ~ ${query.endDate ?? ""}`,

@@ -3,6 +3,7 @@ import { useAuctionStore } from "../store/useAuctionStore";
 import { auctionKey, formatKRW } from "../utils/auctionXlsx";
 import { RecordSheet } from "../components/RecordSheet";
 import {
+	ConditionBadges,
 	DdayPill,
 	dDayLabel,
 	DetailSheet,
@@ -237,10 +238,20 @@ export function DashboardTab({ goAuction, goFavorites }: Props) {
 										{rowTitle(item)}
 									</div>
 									<div
-										style={{ fontSize: 12, color: "#555", marginTop: 3 }}
+										style={{
+											fontSize: 12,
+											color: "#555",
+											marginTop: 3,
+											display: "flex",
+											alignItems: "center",
+											gap: 6,
+										}}
 									>
-										{formatKRW(item.minPrice)} ·{" "}
-										{item.saleDate.slice(5).replace("-", ".")}
+										<span>
+											{formatKRW(item.minPrice)} ·{" "}
+											{item.saleDate.slice(5).replace("-", ".")}
+										</span>
+										<ConditionBadges item={item} includeInfo={false} max={1} />
 									</div>
 								</div>
 								<DdayPill saleDate={item.saleDate} />
@@ -622,7 +633,7 @@ function PriceDistChart({ items }: { items: AuctionItem[] }) {
 		return (
 			<EmptyCard
 				icon={<ChartIcon size={30} />}
-				text={"새 엑셀을 업로드하면 진행 물건의\n가격 분포를 보여드려요"}
+				text={"진행 중인 경매 물건이 모이면\n가격 분포를 보여드려요"}
 			/>
 		);
 	}
