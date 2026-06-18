@@ -13,6 +13,7 @@ const chromePath =
 	"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const targetLimit = Number(process.env.CRAWL_TARGET_LIMIT || 0);
 const waitBetweenTargets = Number(process.env.CRAWL_DELAY_MS || 3500);
+const shouldPublish = process.env.CRAWL_PUBLISH !== "false";
 
 /**
  * 수집 범위. 기본은 현행 서울+성남(시군구 단위), 검증 후 nationwide로 전환해요.
@@ -136,9 +137,14 @@ async function waitForSearchResponse(page, action, timeout = 30000) {
 }
 
 const pagerSel = "#mf_wfm_mainFrame_pgl_gdsDtlSrchPage";
-// 페이지 번호 줄(1~10) 아래의 '다음(그룹/페이지)' 버튼. 끝(control_last)은 안 써요.
-const nextBtnSel =
-	"a.w2pageList_control_next, a[class*='control_next'], a[title*='다음'], a[aria-label*='다음']";
+// 페이지 번호 줄(1~10) 아래의 '다음(그룹/페이지)' 버튼. 반드시 pager 안에서만 찾습니다.
+const nextBtnSel = [
+	"a.w2pageList_control_next",
+	"button.w2pageList_control_next",
+	"[class*='control_next']",
+	"[title*='다음']",
+	"[aria-label*='다음']",
+].join(", ");
 
 /** 페이지 크기를 옵션 최댓값으로 키워요(클릭 수↓). { size, result } */
 async function maximizePageSize(page) {
@@ -185,21 +191,17 @@ async function paginateAll(page, initial, size) {
 
 	for (let guard = 0; unique.size < total && guard < maxGuard; guard += 1) {
 		const before = unique.size;
+		const beforeNumbers = await visiblePageNumbers(pager);
 
 		// 현재 묶음의 숫자 페이지를 모두 눌러서 수집 (이미 방문한 번호/현재 페이지는 건너뜀)
-		const numbers = await pager
-			.locator("a")
-			.filter({ hasText: /^\s*\d+\s*$/ })
-			.allInnerTexts()
-			.catch(() => []);
-		for (const raw of numbers) {
-			const label = raw.trim();
-			if (visited.has(label)) continue;
-			visited.add(label);
+		for (const label of beforeNumbers) {
+			const pageKey = `${label}|${unique.size}`;
+			if (visited.has(pageKey)) continue;
+			visited.add(pageKey);
 			// 현재 페이지를 다시 누르면 응답이 없을 수 있어 짧게 기다리고 넘어가요.
 			const res = await waitForSearchResponse(
 				page,
-				() => pager.getByText(label, { exact: true }).first().click(),
+				() => clickVisiblePageNumber(pager, label),
 				7000,
 			).catch(() => null);
 			if (res) for (const row of res.rows) unique.set(rowKey(row), row);
@@ -207,7 +209,7 @@ async function paginateAll(page, initial, size) {
 		}
 
 		// 다음 묶음으로
-		const next = page.locator(nextBtnSel).first();
+		const next = pager.locator(nextBtnSel).first();
 		if (!(await next.count())) break;
 		const disabled = await next
 			.evaluate(
@@ -222,13 +224,37 @@ async function paginateAll(page, initial, size) {
 			() => null,
 		);
 		if (moved) for (const row of moved.rows) unique.set(rowKey(row), row);
-		if (unique.size === before) break; // 더 이상 진전 없음
+		await page.waitForTimeout(500);
+		const afterNumbers = await visiblePageNumbers(pager);
+		const pagerAdvanced = afterNumbers.join(",") !== beforeNumbers.join(",");
+		if (unique.size === before && !pagerAdvanced) break; // 더 이상 진전 없음
 	}
 
 	if (unique.size < total) {
 		console.warn(`  ⚠ 페이지네이션 누락 가능 — ${unique.size}/${total}`);
 	}
 	return { rows: [...unique.values()], total };
+}
+
+async function visiblePageNumbers(pager) {
+	const labels = await pager
+		.locator("a, button, span")
+		.evaluateAll((elements) =>
+			elements
+				.map((element) => (element.textContent || "").trim())
+				.filter((text) => /^\d+$/.test(text)),
+		)
+		.catch(() => []);
+	return [...new Set(labels)];
+}
+
+async function clickVisiblePageNumber(pager, label) {
+	const candidates = pager
+		.locator("a, button, span")
+		.filter({ hasText: new RegExp(`^\\s*${label}\\s*$`) });
+	const count = await candidates.count();
+	if (!count) throw new Error(`페이지 번호를 찾지 못함: ${label}`);
+	await candidates.first().click({ force: true });
 }
 
 async function crawlTarget(target) {
@@ -366,7 +392,7 @@ if (failures.length) {
 	}
 }
 
-const total = await writeOutputs(results, true);
+const total = await writeOutputs(results, shouldPublish);
 console.log(
 	JSON.stringify(
 		{

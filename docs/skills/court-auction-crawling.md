@@ -265,7 +265,13 @@ checkpoint, wait, and resume later. Do not increase request concurrency.
 ### Result count exceeds collected rows
 
 Inspect the page-size select and pagination markup. The crawler first attempts
-40 rows per page, then clicks remaining page numbers through the UI.
+the largest available page size, then clicks remaining page numbers through the
+UI. For large targets such as `서울특별시 전체`, the visible pager may show only
+one group of 10 page numbers at a time. In that case the crawler must find the
+`다음` control inside `mf_wfm_mainFrame_pgl_gdsDtlSrchPage`, advance to the next
+page-number group, and continue until the collected row count equals
+`data.dma_pageInfo.totalCnt`. A result like `400/1209` means only the first
+10 pages of 40 rows were collected.
 
 ### Raw data is large
 
